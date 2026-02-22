@@ -3,161 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NFC卡牌对战 - WebRTC局域网联机</title>
+    <title>NFC卡牌对战</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', sans-serif;
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             color: white;
             min-height: 100vh;
-            overflow-x: hidden;
-        }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .connection-panel {
-            background: rgba(0,0,0,0.3);
-            border-radius: 15px;
             padding: 20px;
-            margin-bottom: 20px;
-            border: 2px solid #00d2ff;
         }
-        .webrtc-status {
-            display: inline-block;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 14px;
-            margin-bottom: 10px;
-        }
-        .status-disconnected { background: #ff4757; }
-        .status-connecting { background: #ffa502; }
-        .status-connected { background: #2ed573; }
-        .signal-box {
-            width: 100%;
-            min-height: 80px;
-            background: rgba(0,0,0,0.5);
-            border: 1px solid #00d2ff;
-            border-radius: 8px;
-            padding: 10px;
-            margin: 10px 0;
-            font-family: monospace;
-            font-size: 12px;
-            color: #00d2ff;
-            word-break: break-all;
-        }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { text-align: center; margin-bottom: 10px; }
         .btn {
             background: linear-gradient(45deg, #00d2ff, #3a7bd5);
             border: none;
-            padding: 12px 24px;
+            padding: 15px 30px;
             color: white;
             border-radius: 25px;
             cursor: pointer;
             font-size: 16px;
-            margin: 5px;
-            transition: all 0.3s;
-            box-shadow: 0 4px 15px rgba(0,210,255,0.3);
+            margin: 10px 5px;
+            display: inline-block;
         }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,210,255,0.5); }
         .btn-danger { background: linear-gradient(45deg, #ff4757, #ff6348); }
-        .btn-success { background: linear-gradient(45deg, #2ed573, #7bed9f); }
-        .lobby { display: none; }
-        .lobby.active { display: block; }
-        .room-info {
-            background: rgba(255,255,255,0.1);
-            padding: 15px;
+        .panel {
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .card {
+            width: 90px;
+            height: 120px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
             border-radius: 10px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        .players-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-        .player-card {
-            background: rgba(255,255,255,0.1);
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-            border: 2px solid transparent;
-            transition: all 0.3s;
-            position: relative;
-        }
-        .player-card.host { border-color: #ffd700; box-shadow: 0 0 20px rgba(255,215,0,0.3); }
-        .player-card.ready { border-color: #2ed573; background: rgba(46,213,115,0.2); }
-        .player-card.local { background: rgba(0,210,255,0.2); }
-        .player-avatar {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            margin: 0 auto 10px;
-            display: flex;
+            display: inline-flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
-        }
-        .ready-btn {
-            background: #2ed573;
-            margin-top: 10px;
-            padding: 8px 20px;
-            font-size: 14px;
-        }
-        .game-area { display: none; }
-        .game-area.active { display: block; }
-        .battle-arena {
-            background: rgba(0,0,0,0.4);
-            border-radius: 20px;
-            padding: 20px;
-            margin: 20px 0;
-            position: relative;
-            min-height: 400px;
-        }
-        .enemy-section {
-            text-align: center;
-            padding: 20px;
-            background: rgba(255,71,87,0.2);
-            border-radius: 15px;
-            margin-bottom: 30px;
-        }
-        .boss-hp-bar {
-            width: 100%;
-            height: 30px;
-            background: rgba(0,0,0,0.5);
-            border-radius: 15px;
-            overflow: hidden;
-            margin: 10px 0;
-            border: 2px solid #ff4757;
-        }
-        .boss-hp-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #ff4757, #ff6348);
-            transition: width 0.5s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-        }
-        .players-battle-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-        }
-        .battle-player {
-            background: rgba(255,255,255,0.1);
-            padding: 15px;
-            border-radius: 12px;
-            text-align: center;
-        }
-        .battle-player.dead { opacity: 0.5; filter: grayscale(1); }
-        .battle-player.current-turn { 
-            border: 3px solid #ffd700; 
-            box-shadow: 0 0 20px rgba(255,215,0,0.4);
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.02); }
+            margin: 5px;
+            padding: 5px;
+            font-size: 11px;
+            cursor: pointer;
+            border: 2px solid rgba(255,255,255,0.3);
         }
         .hp-bar {
             width: 100%;
@@ -165,711 +55,163 @@
             background: rgba(0,0,0,0.5);
             border-radius: 10px;
             overflow: hidden;
-            margin: 5px 0;
+            margin: 10px 0;
         }
         .hp-fill {
             height: 100%;
             background: linear-gradient(90deg, #2ed573, #7bed9f);
             transition: width 0.3s;
         }
-        .card-hand {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin: 20px 0;
-            min-height: 120px;
-        }
-        .card {
-            width: 100px;
-            height: 140px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 10px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            border: 2px solid rgba(255,255,255,0.3);
-            position: relative;
-            font-size: 12px;
-            text-align: center;
-            padding: 5px;
-        }
-        .card:hover { transform: translateY(-10px) scale(1.05); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .card.disabled { opacity: 0.3; pointer-events: none; }
-        .card.on-cooldown { border-color: #ff4757; }
-        .cooldown-overlay {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 10px;
-            font-size: 24px;
-            font-weight: bold;
-            color: #ff4757;
-        }
-        .card-rarity-common { background: linear-gradient(135deg, #95a5a6, #7f8c8d); }
-        .card-rarity-rare { background: linear-gradient(135deg, #3498db, #2980b9); }
-        .card-rarity-epic { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
-        .card-rarity-legendary { background: linear-gradient(135deg, #f1c40f, #f39c12); border: 2px solid #ffd700; }
-        .action-points {
-            display: flex;
-            gap: 5px;
-            justify-content: center;
-            margin: 10px 0;
-        }
-        .action-point {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.2);
-            border: 2px solid #00d2ff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .action-point.used { background: #333; border-color: #666; }
-        .controls {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin: 20px 0;
-        }
-        .log-box {
-            max-height: 150px;
-            overflow-y: auto;
-            background: rgba(0,0,0,0.5);
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 14px;
-            margin-top: 20px;
-        }
-        .log-entry { margin: 5px 0; padding: 5px; border-left: 3px solid #00d2ff; padding-left: 10px; }
-        .log-entry.damage { border-left-color: #ff4757; }
-        .log-entry.heal { border-left-color: #2ed573; }
-        .nfc-scanner {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.9);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            z-index: 1000;
-        }
-        .nfc-scanner.active { display: flex; }
-        .scan-circle {
-            width: 200px;
-            height: 200px;
-            border: 4px solid #00d2ff;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: scan 2s infinite;
-        }
-        @keyframes scan {
-            0% { box-shadow: 0 0 0 0 rgba(0,210,255,0.7); }
-            70% { box-shadow: 0 0 0 50px rgba(0,210,255,0); }
-            100% { box-shadow: 0 0 0 0 rgba(0,210,255,0); }
-        }
-        .damage-popup {
-            position: absolute;
-            font-size: 24px;
-            font-weight: bold;
-            color: #ff4757;
-            animation: floatUp 1s forwards;
-            pointer-events: none;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-        }
-        @keyframes floatUp {
-            to { transform: translateY(-50px); opacity: 0; }
-        }
-        .combo-text {
-            position: absolute;
-                   <div class="lobby" id="lobby">
-            <div class="room-info">
-                <h2>游戏大厅</h2>
-                <p>当前模式: <span id="currentMode">等待选择...</span></p>
-                <p id="roomCode" style="font-family: monospace; color: #00d2ff; margin-top: 5px;"></p>
-            </div>
-
-            <div class="mode-selector" id="modeSelector" style="display: none;">
-                <div class="mode-btn" onclick="selectMode('pve')">👥 PVE合作</div>
-                <div class="mode-btn" onclick="selectMode('pvp')">⚔️ PVP对战</div>
-            </div>
-
-            <div class="players-grid" id="playersGrid"></div>
-
-            <div class="controls" id="lobbyControls" style="display: none;">
-                <button class="btn ready-btn" id="readyBtn" onclick="toggleReady()">准备</button>
-                <button class="btn" id="startBtn" onclick="startGame()" style="display: none;">开始游戏</button>
-                <button class="btn btn-danger" onclick="addAI()">添加AI</button>
-            </div>
+        .boss-hp-fill { background: linear-gradient(90deg, #ff4757, #ff6348); }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔮 NFC卡牌对战</h1>
+        
+        <div id="menu" class="panel">
+            <h2>选择游戏模式</h2>
+            <button class="btn" onclick="startPVE()">👥 PVE 打Boss</button>
+            <button class="btn" onclick="startPVP()">⚔️ PVP 对战</button>
         </div>
 
-        <div class="game-area" id="gameArea">
-            <div class="battle-arena" id="battleArena">
-                <div class="enemy-section" id="enemySection" style="display: none;">
-                    <h2>👹 <span id="enemyName">远古巨兽</span></h2>
-                    <div class="boss-hp-bar">
-                        <div class="boss-hp-fill" id="enemyHpBar" style="width: 100%">1000/1000</div>
-                    </div>
-                    <p id="enemyIntent" style="margin-top: 10px; font-style: italic; color: #ff4757;">正在积蓄力量...</p>
-                </div>
-
-                <div class="players-battle-grid" id="battleGrid"></div>
-
-                <div class="log-box" id="gameLog"></div>
+        <div id="game" class="panel hidden">
+            <div style="background:rgba(255,0,0,0.2);padding:15px;border-radius:10px;margin-bottom:20px">
+                <h3>👹 Boss</h3>
+                <div>HP: <span id="bossHp">500</span>/500</div>
+                <div class="hp-bar"><div class="hp-fill boss-hp-fill" id="bossBar" style="width:100%"></div></div>
             </div>
 
-            <div style="text-align: center; margin: 20px 0;">
-                <div class="action-points" id="actionPoints"></div>
-                <p style="margin: 10px 0;">行动点: <span id="apText">3/3</span></p>
+            <div style="background:rgba(0,255,0,0.2);padding:15px;border-radius:10px;margin-bottom:20px">
+                <h3>👤 你</h3>
+                <div>HP: <span id="playerHp">100</span>/100</div>
+                <div class="hp-bar"><div class="hp-fill" id="playerBar" style="width:100%"></div></div>
             </div>
 
-            <div class="card-hand" id="cardHand"></div>
-
-            <div class="controls">
-                <button class="btn" onclick="scanNFC()">📱 扫描NFC</button>
-                <button class="btn" onclick="endTurn()" id="endTurnBtn">结束回合</button>
-                <button class="btn btn-danger" onclick="returnToLobby()">退出</button>
+            <div id="hand"></div>
+            
+            <div style="margin-top:20px">
+                <button class="btn" onclick="drawCard()">📱 扫描NFC抽卡</button>
+                <button class="btn btn-danger" onclick="endTurn()">结束回合</button>
             </div>
+            
+            <div id="log" style="margin-top:20px;text-align:left;max-height:150px;overflow-y:auto;background:rgba(0,0,0,0.3);padding:10px;border-radius:8px"></div>
         </div>
-    </div>
-
-    <div class="nfc-scanner" id="nfcScanner">
-        <div class="scan-circle">
-            <span style="font-size: 48px;">📡</span>
-        </div>
-        <p style="margin-top: 30px; font-size: 20px;">请将NFC卡片靠近手机...</p>
-        <button class="btn btn-danger" onclick="cancelScan()" style="margin-top: 20px;">取消</button>
     </div>
 
     <script>
-        const RTC_CONFIG = {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
-            ]
-        };
+        let player = { hp: 100, maxHp: 100, hand: [], defense: 0 };
+        let boss = { hp: 500, maxHp: 500, damage: 20 };
+        let turn = 1;
+        let hasDrawn = false;
 
-        let peerConnection = null;
-        let dataChannel = null;
-        let isHost = false;
-        let roomId = null;
-        
-        const game = {
-            mode: 'single',
-            playerCount: 1,
-            maxPlayers: 4,
-            players: [],
-            teams: { team1: [], team2: [] },
-            currentPlayer: 0,
-            round: 1,
-            enemy: null,
-            battleActive: false,
-            myId: null,
-            hostId: null
-        };
-
-        const CARD_DB = [
-            { id: 'NFC-001', name: '火球术', type: 'attack', rarity: 'common', value: 20, cost: 1, cooldown: 0, desc: '造成20点伤害' },
-            { id: 'NFC-002', name: '护盾', type: 'defense', rarity: 'common', value: 15, cost: 1, cooldown: 0, desc: '获得15点防御' },
-            { id: 'NFC-003', name: '治疗', type: 'heal', rarity: 'common', value: 25, cost: 1, cooldown: 0, desc: '恢复25点生命' },
-            { id: 'NFC-004', name: '毒刃', type: 'poison', rarity: 'rare', value: 10, cost: 1, cooldown: 2, desc: '造成10伤害并中毒(3回合)' },
-            { id: 'NFC-005', name: '吸血', type: 'vampire', rarity: 'rare', value: 15, cost: 2, cooldown: 3, desc: '造成15伤害并恢复等量生命' },
-            { id: 'NFC-006', name: '冰封', type: 'control', rarity: 'epic', value: 0, cost: 2, cooldown: 4, desc: '冻结目标1回合' },
-            { id: 'NFC-007', name: '复活', type: 'revive', rarity: 'legendary', value: 50, cost: 3, cooldown: 5, desc: '复活一名队友并恢复50生命' },
-            { id: 'NFC-008', name: '陨石雨', type: 'aoe', rarity: 'epic', value: 30, cost: 3, cooldown: 3, desc: '对所有敌人造成30伤害' },
-            { id: 'NFC-009', name: '圣光', type: 'special', rarity: 'legendary', value: 40, cost: 2, cooldown: 4, desc: '清除所有负面效果并恢复40生命' },
-            { id: 'NFC-010', name: '重击', type: 'attack', rarity: 'common', value: 35, cost: 2, cooldown: 1, desc: '造成35点伤害' },
-            { id: 'NFC-011', name: '闪避', type: 'defense', rarity: 'rare', value: 0, cost: 1, cooldown: 3, desc: '下回合免疫所有伤害' },
-            { id: 'NFC-012', name: '狂暴', type: 'buff', rarity: 'epic', value: 50, cost: 2, cooldown: 3, desc: '本回合伤害+50%' },
-            { id: 'NFC-013', name: '连锁闪电', type: 'aoe', rarity: 'rare', value: 20, cost: 2, cooldown: 2, desc: '对3个目标造成20伤害' },
-            { id: 'NFC-014', name: '时间停滞', type: 'control', rarity: 'legendary', value: 0, cost: 3, cooldown: 6, desc: '获得额外一个回合' }
+        const cards = [
+            { name: '火球术', type: 'attack', value: 25, desc: '造成25伤害' },
+            { name: '治疗术', type: 'heal', value: 30, desc: '恢复30生命' },
+            { name: '护盾', type: 'defense', value: 20, desc: '获得20防御' },
+            { name: '重击', type: 'attack', value: 40, desc: '造成40伤害' }
         ];
-        async function createRoom() {
-            isHost = true;
-            game.hostId = 'host';
-            game.myId = 'host';
-            
-            peerConnection = new RTCPeerConnection(RTC_CONFIG);
-            dataChannel = peerConnection.createDataChannel('gameData', { ordered: true });
-            setupDataChannel(dataChannel);
-            
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
-            await waitForIceGathering();
-            
-            document.getElementById('localSignal').value = btoa(JSON.stringify(peerConnection.localDescription));
-            document.getElementById('signalExchange').style.display = 'block';
-            document.getElementById('createRoomSection').style.display = 'none';
-            document.getElementById('joinRoomSection').style.display = 'none';
-            updateConnectionStatus('connecting', '等待对方加入...');
-            
-            peerConnection.onicecandidate = (event) => {
-                if (!event.candidate) {
-                    document.getElementById('localSignal').value = btoa(JSON.stringify(peerConnection.localDescription));
-                }
-            };
-            
-            peerConnection.onconnectionstatechange = () => {
-                if (peerConnection.connectionState === 'connected') onConnected();
-            };
-            
-            peerConnection.ondatachannel = (event) => {
-                setupDataChannel(event.channel);
-            };
+
+        function startPVE() {
+            document.getElementById('menu').classList.add('hidden');
+            document.getElementById('game').classList.remove('hidden');
+            player.hand = [drawOne(), drawOne(), drawOne()];
+            updateUI();
+            log('游戏开始！你的回合');
         }
 
-        async function joinRoom() {
-            const signalText = document.getElementById('remoteSignal').value.trim();
-            if (!signalText) { alert('请输入连接代码！'); return; }
-            
-            try {
-                const offer = JSON.parse(atob(signalText));
-                peerConnection = new RTCPeerConnection(RTC_CONFIG);
-                
-                peerConnection.ondatachannel = (event) => {
-                    dataChannel = event.channel;
-                    setupDataChannel(dataChannel);
-                };
-                
-                await peerConnection.setRemoteDescription(offer);
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-                await waitForIceGathering();
-                
-                document.getElementById('localSignal').value = btoa(JSON.stringify(peerConnection.localDescription));
-                document.getElementById('signalExchange').style.display = 'block';
-                document.getElementById('createRoomSection').style.display = 'none';
-                document.getElementById('joinRoomSection').style.display = 'none';
-                document.getElementById('answerSignal').style.display = 'none';
-                document.querySelector('button[onclick="completeConnection()"]').style.display = 'none';
-                updateConnectionStatus('connecting', '等待主机确认...');
-            } catch (e) {
-                alert('无效的连接代码！');
+        function startPVP() {
+            alert('PVP模式需要联机功能，当前为单机演示');
+            startPVE();
+        }
+
+        function drawOne() {
+            return {...cards[Math.floor(Math.random() * cards.length)], id: Date.now()};
+        }
+
+        function drawCard() {
+            if(hasDrawn) {
+                log('本回合已抽过卡！');
+                return;
             }
-        }
-
-        async function completeConnection() {
-            const answerText = document.getElementById('answerSignal').value.trim();
-            if (!answerText) return;
-            try {
-                const answer = JSON.parse(atob(answerText));
-                await peerConnection.setRemoteDescription(answer);
-            } catch (e) { alert('无效的回复代码！'); }
-        }
-
-        function waitForIceGathering() {
-            return new Promise((resolve) => {
-                if (peerConnection.iceGatheringState === 'complete') resolve();
-                else peerConnection.onicegatheringstatechange = () => {
-                    if (peerConnection.iceGatheringState === 'complete') resolve();
-                };
-            });
-        }
-
-        function setupDataChannel(channel) {
-            channel.onopen = () => { onConnected(); };
-            channel.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                handleGameMessage(data);
-            };
-            channel.onclose = () => { updateConnectionStatus('disconnected', '连接已断开'); };
-        }
-
-        function onConnected() {
-            updateConnectionStatus('connected', '已连接');
-            document.getElementById('signalExchange').style.display = 'none';
-            document.getElementById('connectedControls').style.display = 'block';
-            enterLobby();
-        }
-
-        function updateConnectionStatus(state, text) {
-            const status = document.getElementById('connectionStatus');
-            status.className = `webrtc-status status-${state}`;
-            status.textContent = text;
-        }
-
-        function disconnect() {
-            if (dataChannel) dataChannel.close();
-            if (peerConnection) peerConnection.close();
-            location.reload();
-        }
-
-        function sendGameMessage(data) {
-            if (dataChannel && dataChannel.readyState === 'open') {
-                dataChannel.send(JSON.stringify(data));
+            if(player.hand.length >= 5) {
+                log('手牌已满！');
+                return;
             }
+            player.hand.push(drawOne());
+            hasDrawn = true;
+            updateUI();
+            log('抽卡成功！');
         }
 
-        function handleGameMessage(data) {
-            switch(data.type) {
-                case 'lobby_update': updateLobbyFromHost(data.players); break;
-                case 'game_start': startGameFromHost(data); break;
-                case 'player_action': handleRemoteAction(data); break;
-                case 'turn_end': nextTurn(); break;
-                case 'nfc_draw': handleRemoteDraw(data); break;
+        function playCard(index) {
+            let card = player.hand[index];
+            if(!card) return;
+
+            if(card.type === 'attack') {
+                boss.hp -= card.value;
+                log('你对Boss造成 ' + card.value + ' 伤害');
+            } else if(card.type === 'heal') {
+                player.hp = Math.min(player.maxHp, player.hp + card.value);
+                log('你恢复了 ' + card.value + ' 生命');
+            } else if(card.type === 'defense') {
+                player.defense += card.value;
+                log('你获得了 ' + card.value + ' 防御');
             }
-        }
 
-        function enterLobby() {
-            document.getElementById('lobby').classList.add('active');
-            document.getElementById('connectionPanel').style.display = 'none';
-            if (isHost) {
-                document.getElementById('modeSelector').style.display = 'flex';
-                document.getElementById('lobbyControls').style.display = 'flex';
-                game.players.push({
-                    id: 'host', name: '玩家1 (房主)', isHost: true,
-                    isReady: false, isAI: false, team: 1
-                });
-                updateLobbyDisplay();
-            } else {
-                sendGameMessage({ type: 'join_request', name: '玩家' + Math.floor(Math.random() * 1000) });
+            player.hand.splice(index, 1);
+            updateUI();
+
+            if(boss.hp <= 0) {
+                setTimeout(() => alert('🎉 胜利！Boss被击败了！'), 100);
+                return;
             }
-        }
-
-        function selectMode(mode) {
-            if (!isHost) return;
-            game.mode = mode;
-            document.getElementById('currentMode').textContent = mode === 'pve' ? 'PVE合作模式' : 'PVP团队对战';
-            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            sendGameMessage({ type: 'mode_change', mode: mode });
-        }
-
-        function updateLobbyDisplay() {
-            const grid = document.getElementById('playersGrid');
-            grid.innerHTML = '';
-            game.players.forEach((player, index) => {
-                const div = document.createElement('div');
-                div.className = `player-card ${player.isHost ? 'host' : ''} ${player.isReady ? 'ready' : ''} ${player.id === game.myId ? 'local' : ''}`;
-                div.innerHTML = `
-                    <div class="player-avatar">${player.isAI ? '🤖' : (player.isHost ? '👑' : '👤')}</div>
-                    <div>${player.name}</div>
-                    <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">${player.isReady ? '✓ 已准备' : '等待中...'}</div>
-                    ${player.id === game.myId && !player.isAI ? `<button class="btn ready-btn" onclick="toggleReady()">${player.isReady ? '取消准备' : '准备'}</button>` : ''}
-                `;
-                grid.appendChild(div);
-            });
-            if (isHost) {
-                const allReady = game.players.every(p => p.isReady || p.isAI);
-                const enoughPlayers = game.players.length >= 1;
-                document.getElementById('startBtn').style.display = (allReady && enoughPlayers) ? 'inline-block' : 'none';
-            }
-            if (isHost) sendGameMessage({ type: 'lobby_update', players: game.players, mode: game.mode });
-        }
-
-        function updateLobbyFromHost(players) {
-            if (!isHost) { game.players = players; updateLobbyDisplay(); }
-        }
-
-        function toggleReady() {
-            const player = game.players.find(p => p.id === game.myId);
-            if (player) {
-                player.isReady = !player.isReady;
-                updateLobbyDisplay();
-                sendGameMessage({ type: 'player_ready', id: game.myId, ready: player.isReady });
-            }
-        }
-
-        function addAI() {
-            if (!isHost) return;
-            const aiNum = game.players.filter(p => p.isAI).length + 1;
-            game.players.push({
-                id: 'ai_' + Date.now(), name: `AI ${aiNum}`,
-                isHost: false, isReady: true, isAI: true,
-                team: game.mode === 'pvp' ? (game.players.length % 2 + 1) : 1
-            });
-            updateLobbyDisplay();
-        }
-        function startGame() {
-            if (!isHost) return;
-            game.battleActive = true;
-            game.round = 1;
-            game.currentPlayer = 0;
-            game.players.forEach((p, i) => {
-                p.hp = 100; p.maxHp = 100; p.hand = [];
-                p.pendingDefense = 0; p.usedThisTurn = [];
-                p.combo = 0; p.dead = false;
-                p.hasRevive = false; p.actionPoints = 3;
-            });
-            if (game.mode === 'pve') {
-                const difficulty = game.players.length;
-                game.enemy = {
-                    name: '混沌巨兽', hp: 500 * difficulty,
-                    maxHp: 500 * difficulty, damage: 15 * difficulty, pattern: 0
-                };
-            }
-            sendGameMessage({ type: 'game_start', players: game.players, enemy: game.enemy, mode: game.mode });
-            initBattle();
-        }
-
-        function startGameFromHost(data) {
-            game.players = data.players;
-            game.enemy = data.enemy;
-            game.mode = data.mode;
-            game.battleActive = true;
-            initBattle();
-        }
-
-        function initBattle() {
-            document.getElementById('lobby').classList.remove('active');
-            document.getElementById('gameArea').classList.add('active');
-            if (game.mode === 'pve' && game.enemy) {
-                document.getElementById('enemySection').style.display = 'block';
-                updateEnemyDisplay();
-            } else { document.getElementById('enemySection').style.display = 'none'; }
-            updateBattleGrid();
-            game.players.forEach(p => { if (!p.isAI) drawCards(p, 3); });
-            startTurn();
-        }
-
-        function updateBattleGrid() {
-            const grid = document.getElementById('battleGrid');
-            grid.innerHTML = '';
-            game.players.forEach((player, index) => {
-                if (player.dead) return;
-                const div = document.createElement('div');
-                div.className = `battle-player ${index === game.currentPlayer ? 'current-turn' : ''} ${player.id === game.myId ? 'local' : ''}`;
-                div.innerHTML = `
-                    <div style="font-size: 24px; margin-bottom: 5px;">${player.isAI ? '🤖' : '👤'}</div>
-                    <div style="font-weight: bold;">${player.name}</div>
-                    <div class="hp-bar"><div class="hp-fill" style="width: ${(player.hp/player.maxHp)*100}%"></div></div>
-                    <div style="font-size: 12px; margin-top: 5px;">HP: ${player.hp}/${player.maxHp} | 防御: ${player.pendingDefense || 0}</div>
-                    ${player.id === game.myId ? '<div style="color: #00d2ff; font-size: 12px; margin-top: 5px;">你的回合</div>' : ''}
-                `;
-                grid.appendChild(div);
-            });
-        }
-
-        function updateEnemyDisplay() {
-            if (!game.enemy) return;
-            const pct = (game.enemy.hp / game.enemy.maxHp) * 100;
-            document.getElementById('enemyHpBar').style.width = pct + '%';
-            document.getElementById('enemyHpBar').textContent = `${game.enemy.hp}/${game.enemy.maxHp}`;
-        }
-
-        function startTurn() {
-            const player = game.players[game.currentPlayer];
-            if (!player || player.dead) { nextTurn(); return; }
-            player.actionPoints = 3;
-            player.usedThisTurn = [];
-            player.pendingDefense = 0;
-            updateBattleGrid();
-            updateActionPoints();
-            if (player.isAI) setTimeout(aiTurn, 1000);
-            else if (player.id === game.myId) updateCardDisplay();
-            log(`${player.name} 的回合开始`);
-        }
-
-        function updateActionPoints() {
-            const container = document.getElementById('actionPoints');
-            const player = game.players[game.currentPlayer];
-            container.innerHTML = '';
-            for (let i = 0; i < 3; i++) {
-                const dot = document.createElement('div');
-                dot.className = `action-point ${i >= player.actionPoints ? 'used' : ''}`;
-                dot.textContent = i < player.actionPoints ? '●' : '○';
-                container.appendChild(dot);
-            }
-            document.getElementById('apText').textContent = `${player.actionPoints}/3`;
-        }
-
-        function scanNFC() {
-            const scanner = document.getElementById('nfcScanner');
-            scanner.classList.add('active');
-            if ('NDEFReader' in window) {
-                const ndef = new NDEFReader();
-                ndef.scan().then(() => {
-                    ndef.onreading = event => {
-                        const serial = event.serialNumber || 'NFC-' + Math.random().toString(36).substr(2, 9);
-                        onCardScanned(serial);
-                    };
-                }).catch(() => { setTimeout(() => simulateScan(), 2000); });
-            } else { setTimeout(() => simulateScan(), 2000); }
-        }
-
-        function simulateScan() {
-            const cards = Object.keys(CARD_DB);
-            const random = cards[Math.floor(Math.random() * cards.length)];
-            onCardScanned(random);
-        }
-
-        function onCardScanned(cardId) {
-            document.getElementById('nfcScanner').classList.remove('active');
-            const player = game.players[game.currentPlayer];
-            if (!player || player.id !== game.myId || player.dead) return;
-            if (player.hand.length >= 5) { alert('手牌已满！'); return; }
-            let card = CARD_DB.find(c => c.id === cardId);
-            if (!card) card = CARD_DB[Math.floor(Math.random() * CARD_DB.length)];
-            card = {...card, instanceId: Date.now(), currentCooldown: 0};
-            player.hand.push(card);
-            sendGameMessage({ type: 'nfc_draw', playerId: player.id, card: card });
-            updateCardDisplay();
-            log(`扫描成功: 获得 [${card.name}]`, 'heal');
-        }
-
-        function cancelScan() { document.getElementById('nfcScanner').classList.remove('active'); }
-
-        function updateCardDisplay() {
-            const container = document.getElementById('cardHand');
-            container.innerHTML = '';
-            const player = game.players[game.currentPlayer];
-            if (!player || player.id !== game.myId) return;
-            player.hand.forEach((card, index) => {
-                const div = document.createElement('div');
-                div.className = `card card-rarity-${card.rarity} ${card.currentCooldown > 0 ? 'on-cooldown' : ''} ${card.cost > player.actionPoints ? 'disabled' : ''}`;
-                let html = `
-                    <div style="font-weight: bold; margin-bottom: 5px;">${card.name}</div>
-                    <div style="font-size: 10px; margin-bottom: 5px;">${card.desc}</div>
-                    <div style="position: absolute; bottom: 5px; width: 100%; display: flex; justify-content: space-around; font-size: 12px;">
-                        <span>💎${card.cost}</span>
-                        ${card.cooldown > 0 ? `<span>⏳${card.currentCooldown}/${card.cooldown}</span>` : ''}
-                    </div>
-                `;
-                if (card.currentCooldown > 0) html += `<div class="cooldown-overlay">${card.currentCooldown}</div>`;
-                div.innerHTML = html;
-                if (card.currentCooldown === 0 && card.cost <= player.actionPoints) div.onclick = () => playCard(index);
-                container.appendChild(div);
-            });
-        }
-
-        function playCard(handIndex) {
-            const player = game.players[game.currentPlayer];
-            const card = player.hand[handIndex];
-            if (!card || card.currentCooldown > 0 || card.cost > player.actionPoints) return;
-            executeCardEffect(player, card);
-            player.actionPoints -= card.cost;
-            card.currentCooldown = card.cooldown;
-            player.hand.splice(handIndex, 1);
-            player.usedThisTurn.push(card.type);
-            checkCombo(player);
-            updateActionPoints();
-            updateCardDisplay();
-            updateBattleGrid();
-            if (game.enemy) updateEnemyDisplay();
-            sendGameMessage({ type: 'player_action', playerId: player.id, card: card, targets: getCardTargets(card) });
-            checkWinCondition();
-        }
-
-        function executeCardEffect(player, card, target) {
-            let value = card.value;
-            const comboCount = player.usedThisTurn.filter(t => t === card.type).length;
-            if (comboCount > 0) { value = Math.floor(value * (1 + comboCount * 0.2)); showComboText(comboCount + 1); }
-            switch(card.type) {
-                case 'attack':
-                    if (game.mode === 'pve' && game.enemy) {
-                        game.enemy.hp -= value; showDamage(game.enemy, value);
-                        log(`${player.name} 对Boss造成 ${value} 伤害`, 'damage');
-                    } else if (game.mode === 'pvp' && target) {
-                        let actualDamage = value - (target.pendingDefense || 0);
-                        if (actualDamage < 0) actualDamage = 0;
-                        target.hp -= actualDamage;
-                        target.pendingDefense = Math.max(0, (target.pendingDefense || 0) - value);
-                        showDamage(target, actualDamage);
-                        log(`${player.name} 对 ${target.name} 造成 ${actualDamage} 伤害`, 'damage');
-                    } break;
-                case 'defense':
-                    player.pendingDefense = (player.pendingDefense || 0) + value;
-                    log(`${player.name} 获得 ${value} 点防御`); break;
-                case 'heal':
-                    player.hp = Math.min(player.maxHp, player.hp + value);
-                    log(`${player.name} 恢复 ${value} 点生命`, 'heal'); break;
-                case 'vampire':
-                    if (game.mode === 'pve' && game.enemy) {
-                        game.enemy.hp -= value; player.hp = Math.min(player.maxHp, player.hp + value);
-                        showDamage(game.        function aiTurn() {
-            const player = game.players[game.currentPlayer];
-            if (!player || !player.isAI) return;
-            const sorted = [...player.hand].sort((a, b) => b.value - a.value);
-            if (sorted.length > 0 && player.actionPoints > 0) {
-                const cardIndex = player.hand.findIndex(c => c.instanceId === sorted[0].instanceId);
-                if (cardIndex !== -1) { playCard(cardIndex); setTimeout(() => aiTurn(), 1000); return; }
-            }
-            endTurn();
         }
 
         function endTurn() {
-            const player = game.players[game.currentPlayer];
-            if (player) player.hand.forEach(card => { if (card.currentCooldown > 0) card.currentCooldown--; });
-            sendGameMessage({ type: 'turn_end' });
-            nextTurn();
-        }
-
-        function nextTurn() {
-            if (checkWinCondition()) return;
-            if (game.mode === 'pve' && game.enemy && game.currentPlayer === game.players.length - 1) bossTurn();
-            else { game.currentPlayer = (game.currentPlayer + 1) % game.players.length; startTurn(); }
+            hasDrawn = false;
+            setTimeout(bossTurn, 500);
         }
 
         function bossTurn() {
-            log('Boss的回合！', 'damage');
-            const alive = game.players.filter(p => !p.dead);
-            if (alive.length > 0) {
-                const target = alive[Math.floor(Math.random() * alive.length)];
-                let damage = game.enemy.damage;
-                if (target.pendingDefense) { damage -= target.pendingDefense; target.pendingDefense = 0; if (damage < 0) damage = 0; }
-                target.hp -= damage; showDamage(target, damage);
-                log(`Boss对 ${target.name} 造成 ${damage} 伤害！`, 'damage');
-                if (target.hp <= 0) { target.hp = 0; target.dead = true; log(`${target.name} 被Boss击败了！`, 'damage'); }
+            let dmg = boss.damage;
+            if(player.defense > 0) {
+                let blocked = Math.min(player.defense, dmg);
+                player.defense -= blocked;
+                dmg -= blocked;
+                log('Boss攻击被防御格挡 ' + blocked + ' 点');
             }
-            if (game.enemy.hp < game.enemy.maxHp * 0.5) {
-                game.enemy.damage = Math.floor(game.enemy.damage * 1.5);
-                log('Boss进入狂暴状态！', 'damage');
-            }
-            updateBattleGrid();
-            setTimeout(() => { game.currentPlayer = 0; game.round++; startTurn(); }, 1500);
-        }
+            player.hp -= dmg;
+            log('Boss对你造成 ' + dmg + ' 伤害！');
+            updateUI();
 
-        function checkWinCondition() {
-            if (game.mode === 'pve' && game.enemy) {
-                if (game.enemy.hp <= 0) { alert('胜利！Boss被击败了！'); returnToLobby(); return true; }
-                const alive = game.players.filter(p => !p.dead);
-                if (alive.length === 0) { alert('失败...所有玩家都倒下了'); returnToLobby(); return true; }
-            } else if (game.mode === 'pvp') {
-                const team1Alive = game.players.filter(p => p.team === 1 && !p.dead);
-                const team2Alive = game.players.filter(p => p.team === 2 && !p.dead);
-                if (team1Alive.length === 0 || team2Alive.length === 0) {
-                    alert((team1Alive.length > 0 ? '队伍1' : '队伍2') + ' 获胜！');
-                    returnToLobby(); return true;
-                }
-            }
-            return false;
-        }
-
-        function returnToLobby() {
-            game.battleActive = false;
-            document.getElementById('gameArea').classList.remove('active');
-            document.getElementById('lobby').classList.add('active');
-            game.players.forEach(p => { p.isReady = false; p.hp = 100; p.hand = []; });
-            updateLobbyDisplay();
-        }
-
-        function log(msg, type = '') {
-            const box = document.getElementById('gameLog');
-            const div = document.createElement('div');
-            div.className = 'log-entry ' + type;
-            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-            box.appendChild(div); box.scrollTop = box.scrollHeight;
-        }
-
-        function drawCards(player, count) {
-            for(let i=0; i<count; i++) {
-                if(player.hand.length >= 5) break;
-                const card = CARD_DB[Math.floor(Math.random() * CARD_DB.length)];
-                player.hand.push({...card, instanceId: Date.now() + i, currentCooldown: 0});
+            if(player.hp <= 0) {
+                setTimeout(() => alert('💀 失败...你被打败了'), 100);
+            } else {
+                turn++;
+                log('第 ' + turn + ' 回合开始');
             }
         }
 
-        roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-        document.getElementById('roomCode').textContent = '房间代码: ' + roomId;
+        function updateUI() {
+            document.getElementById('bossHp').innerText = Math.max(0, boss.hp);
+            document.getElementById('bossBar').style.width = (Math.max(0, boss.hp) / boss.maxHp * 100) + '%';
+            document.getElementById('playerHp').innerText = Math.max(0, player.hp);
+            document.getElementById('playerBar').style.width = (Math.max(0, player.hp) / player.maxHp * 100) + '%';
+            
+            let handHtml = '';
+            player.hand.forEach((card, i) => {
+                handHtml += `<div class="card" onclick="playCard(${i})"><b>${card.name}</b><br>${card.desc}</div>`;
+            });
+            document.getElementById('hand').innerHTML = handHtml;
+        }
+
+        function log(msg) {
+            let div = document.getElementById('log');
+            div.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+            div.scrollTop = div.scrollHeight;
+        }
     </script>
 </body>
 </html>
