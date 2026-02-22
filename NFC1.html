@@ -3,656 +3,528 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NFC卡牌对战 - 扫码联机</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <title>NFC卡牌对战</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: white;
-            min-height: 100vh;
-            padding: 10px;
-        }
-        .container { max-width: 800px; margin: 0 auto; }
-        .btn {
-            background: linear-gradient(45deg, #00d2ff, #3a7bd5);
-            border: none;
-            padding: 12px 20px;
-            color: white;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 15px;
-            margin: 5px;
-            transition: all 0.3s;
-        }
-        .btn:hover { transform: translateY(-2px); }
-        .btn-sm { padding: 8px 15px; font-size: 13px; }
-        .panel {
-            background: rgba(0,0,0,0.3);
-            border-radius: 15px;
-            padding: 20px;
-            margin: 15px 0;
-            border: 2px solid rgba(255,255,255,0.1);
-        }
-        .status {
-            display: inline-block;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 14px;
-            background: #ff4757;
-            margin-bottom: 10px;
-        }
-        .status.connected { background: #2ed573; }
-        .hidden { display: none !important; }
-        .qr-modal {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.9);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            z-index: 1000;
-            padding: 20px;
-        }
-        .qr-modal.active { display: flex; }
-        #qrcode {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 20px 0;
-        }
-        .signal-box {
-            width: 100%;
-            min-height: 60px;
-            background: rgba(0,0,0,0.5);
-            border: 1px solid #00d2ff;
-            border-radius: 8px;
-            padding: 10px;
-            margin: 10px 0;
-            font-family: monospace;
-            font-size: 11px;
-            color: #00d2ff;
-            word-break: break-all;
-        }
-        .file-input {
-            display: none;
-        }
-        .lobby { display: none; }
-        .lobby.active { display: block; }
-        .game-area { display: none; }
-        .game-area.active { display: block; }
-        .players-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 10px;
-            margin: 15px 0;
-        }
-        .player-card {
-            background: rgba(255,255,255,0.1);
-            border-radius: 10px;
-            padding: 15px;
-            text-align: center;
-            border: 2px solid transparent;
-        }
-        .player-card.ready { border-color: #2ed573; }
-        .hp-bar {
-            width: 100%;
-            height: 20px;
-            background: rgba(0,0,0,0.5);
-            border-radius: 10px;
-            overflow: hidden;
-            margin: 5px 0;
-        }
-        .hp-fill {
-            height: 100%;
-            background: #2ed573;
-            transition: width 0.3s;
-        }
-        .card {
-            width: 90px;
-            height: 120px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border-radius: 8px;
-            display: inline-flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            margin: 5px;
-            padding: 5px;
-            font-size: 11px;
-            cursor: pointer;
-            border: 2px solid rgba(255,255,255,0.3);
-        }
-        .card-hand { text-align: center; margin: 15px 0; }
-        .log-box {
-            max-height: 150px;
-            overflow-y: auto;
-            background: rgba(0,0,0,0.3);
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 13px;
-            margin-top: 15px;
-        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);color:#fff;min-height:100vh;padding:10px}
+        .container{max-width:800px;margin:0 auto}
+        .btn{background:linear-gradient(45deg,#00d2ff,#3a7bd5);border:none;padding:12px 24px;color:#fff;border-radius:25px;cursor:pointer;font-size:16px;margin:5px}
+        .btn-danger{background:linear-gradient(45deg,#ff4757,#ff6348)}
+        .btn-success{background:linear-gradient(45deg,#2ed573,#7bed9f)}
+        .panel{background:rgba(0,0,0,0.3);border-radius:15px;padding:20px;margin:15px 0;border:2px solid rgba(255,255,255,0.1)}
+        .status{display:inline-block;padding:5px 15px;border-radius:20px;font-size:14px;background:#ff4757;margin-bottom:10px}
+        .status.connected{background:#2ed573}
+        .signal-box{width:100%;min-height:60px;background:rgba(0,0,0,0.5);border:1px solid #00d2ff;border-radius:8px;padding:10px;margin:10px 0;font-family:monospace;font-size:11px;color:#00d2ff;word-break:break-all}
+        .hidden{display:none!important}
+        .lobby{display:none}.lobby.active{display:block}
+        .game-area{display:none}.game-area.active{display:block}
+        .players-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:15px 0}
+        .player-card{background:rgba(255,255,255,0.1);border-radius:10px;padding:15px;text-align:center;border:2px solid transparent}
+        .player-card.ready{border-color:#2ed573}
+        .player-card.current-turn{border-color:#ffd700;box-shadow:0 0 10px rgba(255,215,0,0.5)}
+        .hp-bar{width:100%;height:20px;background:rgba(0,0,0,0.5);border-radius:10px;overflow:hidden;margin:5px 0}
+        .hp-fill{height:100%;background:#2ed573;transition:width 0.3s;display:flex;align-items:center;justify-content:center;font-size:12px}
+        .hp-fill.enemy{background:#ff4757}
+        .card{width:85px;height:115px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:8px;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;margin:3px;padding:5px;font-size:11px;cursor:pointer;border:2px solid rgba(255,255,255,0.3);vertical-align:top}
+        .card-hand{text-align:center;margin:10px 0;min-height:130px}
+        .log-box{max-height:120px;overflow-y:auto;background:rgba(0,0,0,0.3);padding:10px;border-radius:8px;font-size:13px;margin-top:15px;text-align:left}
+        .enemy-section{text-align:center;padding:15px;background:rgba(255,71,87,0.2);border-radius:15px;margin-bottom:15px;border:2px solid #ff4757}
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 style="text-align: center; margin-bottom: 5px;">🔮 NFC卡牌对战</h1>
-        <p style="text-align: center; opacity: 0.8; font-size: 13px;">扫码联机版</p>
-
+        <h1 style="text-align:center;margin-bottom:5px">🔮 NFC卡牌对战</h1>
+        <p style="text-align:center;opacity:0.8;font-size:13px">WebRTC联机版</p>
+        
         <div class="panel" id="connectionPanel">
             <div id="connectionStatus" class="status">未连接</div>
-            
             <div id="createRoomSection">
                 <button class="btn" onclick="createRoom()">🏠 创建房间</button>
-                <p style="margin-top: 10px; font-size: 12px; color: #aaa;">生成二维码让好友扫描</p>
+                <p style="margin-top:10px;font-size:12px;color:#aaa">生成连接代码邀请好友</p>
             </div>
-
-            <div id="joinRoomSection" style="margin-top: 15px;">
-                <button class="btn" onclick="scanQRCode()">📷 扫描二维码</button>
-                <p style="margin: 10px 0; font-size: 12px;">或手动输入：</p>
-                <textarea class="signal-box" id="remoteSignal" placeholder="粘贴对方代码..."></textarea>
-                <button class="btn btn-sm" onclick="joinRoom()">加入</button>
+            <div id="joinRoomSection" style="margin-top:15px">
+                <button class="btn" onclick="showJoin()">🚪 加入房间</button>
             </div>
-
-            <div id="signalExchange" class="hidden">
-                <p style="color: #ffd700; margin-bottom: 10px;">📱 让对方扫描此二维码：</p>
-                <div id="qrcode"></div>
-                <p style="font-size: 12px; margin: 10px 0;">或复制文本发送：</p>
+            <div id="joinInputSection" class="hidden" style="margin-top:15px">
+                <textarea class="signal-box" id="remoteSignal" placeholder="粘贴房主的连接代码..."></textarea>
+                <button class="btn" onclick="joinRoom()">连接</button>
+            </div>
+            <div id="signalExchange" class="hidden" style="margin-top:15px">
+                <p style="color:#ffd700;margin-bottom:10px">📋 发送此代码给对方：</p>
                 <textarea class="signal-box" id="localSignal" readonly onclick="this.select()"></textarea>
-                <p style="font-size: 12px; color: #aaa; margin-top: 10px;">等待对方回应...</p>
-                <div id="answerSection" class="hidden" style="margin-top: 15px;">
-                    <p>扫描对方的回应二维码：</p>
-                    <button class="btn btn-sm" onclick="scanAnswerQR()">扫描回应</button>
-                    <p style="margin: 5px 0; font-size: 12px;">或粘贴文本：</p>
-                    <textarea class="signal-box" id="answerSignal" placeholder="粘贴回应代码..."></textarea>
-                    <button class="btn btn-success btn-sm" onclick="completeConnection()">完成连接</button>
-                </div>
+                <p style="font-size:12px;margin:10px 0">对方回应后粘贴到下方：</p>
+                <textarea class="signal-box" id="answerSignal" placeholder="粘贴对方回应代码..."></textarea>
+                <button class="btn btn-success" onclick="completeConnection()">完成连接</button>
             </div>
-
-            <div id="connectedControls" class="hidden">
-                <span style="color: #2ed573;">✓ 已连接</span>
-                <button class="btn btn-sm btn-danger" onclick="location.reload()" style="margin-left: 10px;">断开</button>
+            <div id="connectedControls" class="hidden" style="margin-top:15px">
+                <span style="color:#2ed573">✓ 已连接</span>
+                <button class="btn btn-danger" onclick="location.reload()" style="margin-left:10px">断开</button>
             </div>
         </div>
 
         <div class="lobby" id="lobby">
-            <div class="panel" style="text-align: center;">
+            <div class="panel" style="text-align:center">
                 <h3>游戏大厅</h3>
-                <p>模式: <span id="currentMode" style="color: #00d2ff;">未选择</span></p>
+                <p>模式：<span id="currentMode" style="color:#00d2ff;font-weight:bold">未选择</span></p>
                 <div id="modeSelector" class="hidden">
-                    <button class="btn btn-sm" onclick="selectMode('pve')">PVE合作</button>
-                    <button class="btn btn-sm" onclick="selectMode('pvp')">PVP对战</button>
+                    <button class="btn" onclick="selectMode('pve')">👥 PVE合作</button>
+                    <button class="btn" onclick="selectMode('pvp')">⚔️ PVP对战</button>
                 </div>
             </div>
             <div class="players-grid" id="playersGrid"></div>
-            <div class="panel hidden" id="lobbyControls" style="text-align: center;">
+            <div class="panel hidden" id="lobbyControls" style="text-align:center">
                 <button class="btn" onclick="toggleReady()" id="readyBtn">准备</button>
-                <button class="btn btn-success hidden" onclick="startGame()" id="startBtn">开始</button>
-                <button class="btn btn-sm btn-danger" onclick="addAI()">加AI</button>
+                <button class="btn btn-success hidden" onclick="startGame()" id="startBtn">开始游戏</button>
+                <button class="btn btn-danger" onclick="addAI()">添加AI</button>
             </div>
         </div>
-
         <div class="game-area" id="gameArea">
             <div class="panel">
-                <div id="enemySection" class="hidden" style="text-align: center; margin-bottom: 15px;">
-                    <h3>👹 Boss (难度<span id="difficulty">1</span>x)</h3>
-                    <div class="hp-bar"><div class="hp-fill" id="enemyHpBar" style="width: 100%; background: #ff4757;">1000/1000</div></div>
+                <div class="enemy-section hidden" id="enemySection">
+                    <h3>👹 混沌巨兽 (难度<span id="difficulty">1</span>x)</h3>
+                    <div class="hp-bar"><div class="hp-fill enemy" id="enemyHpBar" style="width:100%">1000/1000</div></div>
                 </div>
                 <div class="players-grid" id="battleGrid"></div>
-                <div style="text-align: center; margin: 10px 0;">
-                    <span style="font-size: 18px;">行动点: <b id="apText">3</b>/3 | 回合: <b id="roundText">1</b></span>
+                <div style="text-align:center;margin:10px 0">
+                    <span style="font-size:16px">行动点：<b id="apText" style="color:#ffd700">3</b>/3 | 回合：<b id="roundText">1</b></span>
                 </div>
                 <div class="card-hand" id="cardHand"></div>
-                <div style="text-align: center;">
+                <div style="text-align:center">
                     <button class="btn" onclick="scanNFC()">📱 NFC抽卡</button>
                     <button class="btn" onclick="endTurn()">结束回合</button>
-                    <button class="btn btn-danger btn-sm" onclick="returnToLobby()">退出</button>
+                    <button class="btn btn-danger" onclick="returnToLobby()">退出</button>
                 </div>
                 <div class="log-box" id="gameLog"></div>
             </div>
         </div>
     </div>
 
-    <div class="qr-modal" id="qrScannerModal">
-        <h3>📷 扫描二维码</h3>
-        <p style="margin: 10px 0; font-size: 14px;">请选择包含二维码的图片</p>
-        <input type="file" class="file-input" id="qrInput" accept="image/*" onchange="handleQRImage(event)">
-        <button class="btn" onclick="document.getElementById('qrInput').click()">选择图片</button>
-        <button class="btn btn-danger" onclick="closeQRScanner()" style="margin-top: 20px;">取消</button>
-        <canvas id="qrCanvas" style="display: none;"></canvas>
-    </div>
-
-    <div class="qr-modal" id="qrDisplayModal">
-        <h3>📱 请对方扫描此码</h3>
-        <div id="displayQR"></div>
-        <button class="btn" onclick="closeQRDisplay()">关闭</button>
-    </div>
-
     <script>
-        const RTC_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-        let pc = null, dc = null, isHost = false, game = { mode: 'pve', players: [], currentPlayer: 0, round: 1, enemy: null, battleActive: false };
-        let pendingAction = null;
+        const RTC_CONFIG={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]};
+        let pc=null,dc=null,isHost=false;
+        let game={mode:'pve',players:[],currentPlayer:0,round:1,enemy:null,battleActive:false,myId:null};
         
-        const CARD_DB = [
-            { name: '火球', type: 'attack', value: 25, cost: 1, desc: '25伤害' },
-            { name: '治疗', type: 'heal', value: 30, cost: 1, desc: '30回血' },
-            { name: '护盾', type: 'defense', value: 20, cost: 1, desc: '20防御' },
-                   async function createRoom() {
-            isHost = true; game.myId = 'host';
-            pc = new RTCPeerConnection(RTC_CONFIG);
-            dc = pc.createDataChannel('game', { ordered: true });
+        const CARD_DB=[
+            {name:'火球术',type:'attack',rarity:'common',value:25,cost:1,desc:'造成25伤害'},
+            {name:'治疗术',type:'heal',rarity:'common',value:30,cost:1,desc:'恢复30生命'},
+            {name:'护盾',type:'defense',rarity:'common',value:20,cost:1,desc:'获得20防御'},
+            {name:'毒刃',type:'poison',rarity:'rare',value:15,cost:1,desc:'15伤害+中毒'},
+            {name:'吸血',type:'vampire',rarity:'rare',value:20,cost:2,desc:'伤害并回血'},
+            {name:'陨石雨',type:'aoe',rarity:'epic',value:35,cost:2,desc:'全体35伤害'},
+            {name:'复活',type:'revive',rarity:'legendary',value:50,cost:3,desc:'复活队友'},
+            {name:'重击',type:'attack',rarity:'common',value:40,cost:2,desc:'造成40伤害'}
+        ];
+        
+        function $(id){return document.getElementById(id)}
+        function show(id){$(id).classList.remove('hidden')}
+        function hide(id){$(id).classList.add('hidden')}
+        function setStatus(cls,text){const s=$('connectionStatus');s.className='status '+cls;s.innerText=text}
+        function log(msg,type=''){
+            const box=$('gameLog');
+            const div=document.createElement('div');
+            div.style.cssText='margin:3px 0;padding-left:10px;border-left:3px solid '+(type==='damage'?'#ff4757':(type==='heal'?'#2ed573':'#00d2ff'));
+            div.innerText='['+new Date().toLocaleTimeString()+'] '+msg;
+            box.appendChild(div);
+            box.scrollTop=box.scrollHeight;
+        }
+        async function createRoom(){
+            console.log('创建房间...');
+            isHost=true;
+            game.myId='host';
+            pc=new RTCPeerConnection(RTC_CONFIG);
+            dc=pc.createDataChannel('game',{ordered:true});
             setupDataChannel(dc);
             
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            await waitIce(pc);
-            
-            const code = btoa(JSON.stringify(pc.localDescription));
-            showQRCode(code, 'offer');
-            document.getElementById('localSignal').value = code;
-            showPanel('signalExchange');
-            hidePanel('createRoomSection');
-            hidePanel('joinRoomSection');
-            updateStatus('connecting', '等待加入...');
-            
-            pc.onicecandidate = (e) => {
-                if(!e.candidate) {
-                    const updated = btoa(JSON.stringify(pc.localDescription));
-                    document.getElementById('localSignal').value = updated;
-                    showQRCode(updated, 'offer');
-                }
-            };
-            
-            showPanel('answerSection');
-        }
-
-        async function joinRoom() {
-            const txt = document.getElementById('remoteSignal').value.trim();
-            if(!txt) return alert('请输入连接代码');
-            processJoin(txt);
-        }
-
-        async function processJoin(code) {
-            try {
-                const offer = JSON.parse(atob(code));
-                pc = new RTCPeerConnection(RTC_CONFIG);
-                pc.ondatachannel = (e) => { dc = e.channel; setupDataChannel(dc); };
-                await pc.setRemoteDescription(offer);
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-                await waitIce(pc);
+            try{
+                const offer=await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                await waitIceGathering();
                 
-                const ansCode = btoa(JSON.stringify(pc.localDescription));
-                showQRCode(ansCode, 'answer');
-                document.getElementById('localSignal').value = ansCode;
-                showPanel('signalExchange');
-                hidePanel('createRoomSection');
-                hidePanel('joinRoomSection');
+                const code=btoa(JSON.stringify(pc.localDescription));
+                $('localSignal').value=code;
+                show('signalExchange');
+                hide('createRoomSection');
+                hide('joinRoomSection');
+                setStatus('connecting','等待对方加入...');
                 
-                alert('请将此二维码/代码展示给房主扫描确认！');
-            } catch(e) { alert('无效代码: ' + e.message); }
-        }
-
-        async function completeConnection() {
-            const txt = document.getElementById('answerSignal').value.trim();
-            if(!txt) return;
-            try {
-                await pc.setRemoteDescription(JSON.parse(atob(txt)));
-            } catch(e) { alert('无效回应'); }
-        }
-
-        function waitIce(pc) {
-            return new Promise(r => {
-                if(pc.iceGatheringState === 'complete') r();
-                else pc.onicegatheringstatechange = () => { if(pc.iceGatheringState === 'complete') r(); };
-            });
-        }
-
-        function setupDataChannel(ch) {
-            ch.onopen = () => { onConnected(); };
-            ch.onmessage = (e) => handleData(JSON.parse(e.data));
-            ch.onclose = () => updateStatus('disconnected', '断开');
-        }
-
-        function onConnected() {
-            updateStatus('connected', '已连接');
-            showPanel('connectedControls');
-            hidePanel('signalExchange');
-            enterLobby();
-        }
-
-        function sendData(d) { if(dc && dc.readyState === 'open') dc.send(JSON.stringify(d)); }
-        function handleData(d) {
-            switch(d.type) {
-                case 'lobby': updateLobbyFromHost(d); break;
-                case 'start': startGameFromHost(d); break;
-                case 'action': handleRemoteAction(d); break;
-                case 'turn': nextTurn(); break;
-                case 'draw': handleRemoteDraw(d); break;
+                pc.onicecandidate=(e)=>{
+                    if(!e.candidate){
+                        $('localSignal').value=btoa(JSON.stringify(pc.localDescription));
+                    }
+                };
+            }catch(e){
+                alert('创建失败：'+e.message);
+                console.error(e);
             }
         }
-
-        function showQRCode(text, mode) {
-            const container = mode === 'offer' ? 'qrcode' : 'displayQR';
-            document.getElementById(container).innerHTML = '';
-            new QRCode(document.getElementById(container), {
-                text: text,
-                width: 200,
-                height: 200,
-                colorDark: "#000000",
-                colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.M
-            });
-            if(mode === 'answer') document.getElementById('qrDisplayModal').classList.add('active');
+        
+        function showJoin(){
+            show('joinInputSection');
+            hide('createRoomSection');
         }
-
-        function scanQRCode() {
-            pendingAction = 'join';
-            document.getElementById('qrScannerModal').classList.add('active');
-        }
-
-        function scanAnswerQR() {
-            pendingAction = 'answer';
-            document.getElementById('qrScannerModal').classList.add('active');
-        }
-
-        function closeQRScanner() { document.getElementById('qrScannerModal').classList.remove('active'); }
-        function closeQRDisplay() { document.getElementById('qrDisplayModal').classList.remove('active'); }
-
-        function handleQRImage(e) {
-            const file = e.target.files[0];
-            if(!file) return;
+        
+        async function joinRoom(){
+            const txt=$('remoteSignal').value.trim();
+            if(!txt)return alert('请输入连接代码');
             
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.getElementById('qrCanvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const code = jsQR(imgData.data, imgData.width, imgData.height);
+            try{
+                const offer=JSON.parse(atob(txt));
+                pc=new RTCPeerConnection(RTC_CONFIG);
+                pc.ondatachannel=(e)=>{
+                    dc=e.channel;
+                    setupDataChannel(dc);
+                };
                 
-                if(code) {
-                    if(pendingAction === 'join') {
-                        document.getElementById('remoteSignal').value = code.data;
-                        closeQRScanner();
-                        joinRoom();
-                    } else if(pendingAction === 'answer') {
-                        document.getElementById('answerSignal').value = code.data;
-                        closeQRScanner();
-                    }
-                } else {
-                    alert('未识别到二维码，请重试');
-                }
-            };
-            img.src = URL.createObjectURL(file);
+                await pc.setRemoteDescription(offer);
+                const answer=await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                await waitIceGathering();
+                
+                const ansCode=btoa(JSON.stringify(pc.localDescription));
+                $('localSignal').value=ansCode;
+                show('signalExchange');
+                hide('joinInputSection');
+                setStatus('connecting','等待房主确认...');
+                
+                alert('请将下方代码发送给房主确认！');
+            }catch(e){
+                alert('无效代码：'+e.message);
+            }
         }
-        function enterLobby() {
-            hidePanel('connectionPanel');
-            document.getElementById('lobby').classList.add('active');
-            if(isHost) {
-                showPanel('modeSelector');
-                showPanel('lobbyControls');
-                game.players = [{ id: 'host', name: '房主', isHost: true, ready: false, hp: 100, maxHp: 100, hand: [], defense: 0, dead: false, isAI: false }];
+        
+        async function completeConnection(){
+            const txt=$('answerSignal').value.trim();
+            if(!txt)return;
+            try{
+                await pc.setRemoteDescription(JSON.parse(atob(txt)));
+            }catch(e){
+                alert('无效回应：'+e.message);
+            }
+        }
+        
+        function waitIceGathering(){
+            return new Promise(resolve=>{
+                if(pc.iceGatheringState==='complete')resolve();
+                else pc.onicegatheringstatechange=()=>{
+                    if(pc.iceGatheringState==='complete')resolve();
+                };
+            });
+        }
+        
+        function setupDataChannel(channel){
+            channel.onopen=()=>{
+                console.log('连接已打开');
+                onConnected();
+            };
+            channel.onmessage=(e)=>handleData(JSON.parse(e.data));
+            channel.onclose=()=>setStatus('disconnected','连接断开');
+            channel.onerror=(e)=>console.error('通道错误：',e);
+        }
+        
+        function onConnected(){
+            setStatus('connected','已连接');
+            show('connectedControls');
+            hide('signalExchange');
+            enterLobby();
+        }
+        
+        function sendData(data){
+            if(dc&&dc.readyState==='open'){
+                dc.send(JSON.stringify(data));
+            }
+        }
+        
+        function handleData(data){
+            console.log('收到数据：',data);
+            switch(data.type){
+                case 'lobby':updateLobbyFromHost(data);break;
+                case 'start':startGameFromHost(data);break;
+                case 'action':handleRemoteAction(data);break;
+                case 'turn':nextTurn();break;
+                case 'draw':handleRemoteDraw(data);break;
+            }
+        }
+        function enterLobby(){
+            hide('connectionPanel');
+            $('lobby').classList.add('active');
+            if(isHost){
+                show('modeSelector');
+                show('lobbyControls');
+                game.players=[{
+                    id:'host',name:'房主',isHost:true,
+                    ready:false,hp:100,maxHp:100,hand:[],
+                    defense:0,dead:false,isAI:false
+                }];
                 updateLobby();
             }
         }
-
-        function selectMode(m) {
-            if(!isHost) return;
-            game.mode = m;
-            document.getElementById('currentMode').innerText = m === 'pve' ? 'PVE合作' : 'PVP对战';
-            sendData({ type: 'lobby', players: game.players, mode: m });
+        
+        function selectMode(mode){
+            if(!isHost)return;
+            game.mode=mode;
+            $('currentMode').innerText=mode==='pve'?'PVE合作':'PVP对战';
+            sendData({type:'lobby',players:game.players,mode:mode});
         }
-
-        function updateLobby() {
-            document.getElementById('playersGrid').innerHTML = game.players.map((p, i) => `
-                <div class="player-card ${p.ready ? 'ready' : ''}" style="${p.dead ? 'opacity:0.3' : ''}">
-                    <div style="font-size: 28px;">${p.isHost ? '👑' : (p.isAI ? '🤖' : '👤')}</div>
-                    <div style="font-weight: bold; font-size: 14px;">${p.name}</div>
-                    <div style="font-size: 11px; margin-top: 5px;">${p.ready ? '✓ 准备' : '等待'}</div>
+        
+        function updateLobby(){
+            const grid=$('playersGrid');
+            grid.innerHTML=game.players.map((p,i)=>`
+                <div class="player-card ${p.ready?'ready':''}" style="${p.dead?'opacity:0.3':''}">
+                    <div style="font-size:28px">${p.isHost?'👑':(p.isAI?'🤖':'👤')}</div>
+                    <div style="font-weight:bold;font-size:14px">${p.name}</div>
+                    <div style="font-size:12px;color:${p.ready?'#2ed573':'#aaa'}">${p.ready?'✓已准备':'等待中'}</div>
                 </div>
             `).join('');
             
-            if(isHost) {
-                const allReady = game.players.every(p => p.ready || p.isAI);
-                document.getElementById('startBtn').classList.toggle('hidden', !allReady);
+            if(isHost){
+                const allReady=game.players.every(p=>p.ready||p.isAI);
+                if(allReady)show('startBtn');else hide('startBtn');
             }
-            if(isHost) sendData({ type: 'lobby', players: game.players, mode: game.mode });
+            if(isHost)sendData({type:'lobby',players:game.players,mode:game.mode});
         }
-
-        function updateLobbyFromHost(d) {
-            if(!isHost) {
-                game.players = d.players;
-                game.mode = d.mode;
-                document.getElementById('currentMode').innerText = d.mode === 'pve' ? 'PVE合作' : 'PVP对战';
+        
+        function updateLobbyFromHost(data){
+            if(!isHost){
+                game.players=data.players;
+                game.mode=data.mode;
+                $('currentMode').innerText=data.mode==='pve'?'PVE合作':'PVP对战';
                 updateLobby();
             }
         }
-
-        function toggleReady() {
-            const p = game.players.find(x => x.id === 'host' || x.id === game.myId);
-            if(p) { p.ready = !p.ready; updateLobby(); sendData({ type: 'lobby', players: game.players, mode: game.mode }); }
+        
+        function toggleReady(){
+            const p=game.players.find(x=>x.id==='host'||x.id===game.myId);
+            if(p){
+                p.ready=!p.ready;
+                updateLobby();
+                sendData({type:'lobby',players:game.players,mode:game.mode});
+            }
         }
-
-        function addAI() {
-            if(!isHost) return;
-            const n = game.players.filter(p => p.isAI).length + 1;
-            game.players.push({ id: 'ai_' + Date.now(), name: 'AI ' + n, ready: true, isAI: true, hp: 100, maxHp: 100, hand: [], defense: 0, dead: false });
+        
+        function addAI(){
+            if(!isHost)return;
+            const n=game.players.filter(p=>p.isAI).length+1;
+            game.players.push({
+                id:'ai_'+Date.now(),name:'AI '+n,isHost:false,
+                ready:true,isAI:true,hp:100,maxHp:100,
+                hand:[],defense:0,dead:false
+            });
             updateLobby();
         }
-
-        function startGame() {
-            if(!isHost) return;
-            game.battleActive = true;
-            game.round = 1;
-            game.currentPlayer = 0;
-            const diff = game.players.length;
-            game.enemy = game.mode === 'pve' ? { hp: 400 * diff, maxHp: 400 * diff, damage: 15 * diff } : null;
-            game.players.forEach(p => { p.hp = 100; p.hand = []; p.defense = 0; p.dead = false; });
-            sendData({ type: 'start', game: game });
+        
+        function startGame(){
+            if(!isHost)return;
+            game.battleActive=true;
+            game.round=1;
+            game.currentPlayer=0;
+            const diff=game.players.length;
+            game.enemy=game.mode==='pve'?{
+                hp:400*diff,maxHp:400*diff,damage:15*diff,difficulty:diff
+            }:null;
+            game.players.forEach(p=>{
+                p.hp=100;p.maxHp=100;p.hand=[];p.defense=0;p.dead=false;
+            });
+            sendData({type:'start',game:game});
             initBattle();
         }
-
-        function startGameFromHost(d) {
-            Object.assign(game, d.game);
+        
+        function startGameFromHost(data){
+            Object.assign(game,data.game);
             initBattle();
         }
-
-        function initBattle() {
-            document.getElementById('lobby').classList.remove('active');
-            document.getElementById('gameArea').classList.add('active');
-            if(game.enemy) {
-                showPanel('enemySection');
-                document.getElementById('difficulty').innerText = game.players.length;
+        
+        function initBattle(){
+            $('lobby').classList.remove('active');
+            $('gameArea').classList.add('active');
+            if(game.enemy){
+                show('enemySection');
+                $('difficulty').innerText=game.enemy.difficulty;
                 updateEnemy();
             }
-            if(isHost) drawCards(game.players[0], 3);
+            if(isHost)game.players.forEach(p=>{if(!p.isAI)drawCards(p,3)});
             updateBattle();
             startTurn();
         }
-
-        function updateEnemy() {
-            if(!game.enemy) return;
-            const pct = Math.max(0, game.enemy.hp / game.enemy.maxHp * 100);
-            const bar = document.getElementById('enemyHpBar');
-            bar.style.width = pct + '%';
-            bar.innerText = Math.max(0, game.enemy.hp) + '/' + game.enemy.maxHp;
+        
+        function updateEnemy(){
+            if(!game.enemy)return;
+            const pct=Math.max(0,game.enemy.hp/game.enemy.maxHp*100);
+            const bar=$('enemyHpBar');
+            bar.style.width=pct+'%';
+            bar.innerText=Math.max(0,game.enemy.hp)+'/'+game.enemy.maxHp;
         }
-
-        function updateBattle() {
-            document.getElementById('battleGrid').innerHTML = game.players.map((p, i) => `
-                <div class="player-card ${i === game.currentPlayer ? 'ready' : ''}" style="${p.dead ? 'opacity:0.3' : ''}">
-                    <div style="font-size: 28px;">${p.isAI ? '🤖' : '👤'}</div>
-                    <div style="font-size: 13px; font-weight: bold;">${p.name} ${i === game.currentPlayer ? '▶' : ''}</div>
-                    <div class="hp-bar"><div class="hp-fill" style="width: ${(p.hp / p.maxHp * 100)}%">${p.hp}</div></div>
-                    <div style="font-size: 11px;">防御:${p.defense} 手牌:${p.hand ? p.hand.length : 0}</div>
+        
+        function updateBattle(){
+            $('battleGrid').innerHTML=game.players.map((p,i)=>`
+                <div class="player-card ${i===game.currentPlayer?'current-turn':''}" style="${p.dead?'opacity:0.3':''}">
+                    <div style="font-size:28px">${p.isAI?'🤖':'👤'}</div>
+                    <div style="font-size:13px;font-weight:bold">${p.name}${i===game.currentPlayer?'▶':''}</div>
+                    <div class="hp-bar"><div class="hp-fill" style="width:${(p.hp/p.maxHp*100)}%">${p.hp}</div></div>
+                    <div style="font-size:11px">防:${p.defense} 牌:${p.hand.length}</div>
                 </div>
             `).join('');
-            document.getElementById('roundText').innerText = game.round;
+            $('roundText').innerText=game.round;
         }
-
-        function drawCards(p, n) {
-            for(let i = 0; i < n; i++) {
-                if(p.hand.length >= 5) break;
-                const c = CARD_DB[Math.floor(Math.random() * CARD_DB.length)];
-                p.hand.push({ ...c, uid: Date.now() + i });
+        let hasDrawn=false;
+        
+        function startTurn(){
+            const p=game.players[game.currentPlayer];
+            if(!p||p.dead){nextTurn();return;}
+            hasDrawn=false;
+            $('apText').innerText='3';
+            if(p.isAI)setTimeout(aiTurn,1000);
+            else updateHand();
+            log(`${p.name}的回合开始`);
+        }
+        
+        function drawCards(player,count){
+            for(let i=0;i<count;i++){
+                if(player.hand.length>=5)break;
+                const card=CARD_DB[Math.floor(Math.random()*CARD_DB.length)];
+                player.hand.push({...card,uid:Date.now()+i});
             }
         }
-
-        function startTurn() {
-            const p = game.players[game.currentPlayer];
-            if(!p || p.dead) { nextTurn(); return; }
-            document.getElementById('apText').innerText = '3';
-            if(p.isAI) setTimeout(aiTurn, 1000);
-            else updateHand();
-            log(`${p.name}的回合`);
-        }
-
-        function updateHand() {
-            const p = game.players[game.currentPlayer];
-            if(!p) return;
-            document.getElementById('cardHand').innerHTML = p.hand.map((c, i) => `
+        
+        function updateHand(){
+            const p=game.players[game.currentPlayer];
+            if(!p)return;
+            $('cardHand').innerHTML=p.hand.map((c,i)=>`
                 <div class="card" onclick="playCard(${i})">
-                    <div style="font-weight: bold; margin-bottom: 5px;">${c.name}</div>
-                    <div style="font-size: 10px;">${c.desc}</div>
-                    <div style="margin-top: 5px;">💎${c.cost}</div>
+                    <div style="font-weight:bold;margin-bottom:5px">${c.name}</div>
+                    <div style="font-size:10px">${c.desc}</div>
+                    <div style="margin-top:5px">💎${c.cost}</div>
                 </div>
             `).join('');
         }
-        let hasDrawnThisTurn = false;
-
-        function scanNFC() {
-            const p = game.players[game.currentPlayer];
-            if(!p || p.dead || p.isAI || hasDrawnThisTurn) {
-                if(hasDrawnThisTurn) log('本回合已抽卡！');
+        
+        function scanNFC(){
+            const p=game.players[game.currentPlayer];
+            if(!p||p.dead||p.isAI||hasDrawn){
+                if(hasDrawn)log('本回合已抽卡！');
                 return;
             }
-            if(p.hand.length >= 5) { log('手牌已满！'); return; }
+            if(p.hand.length>=5){log('手牌已满！');return;}
             
-            drawCards(p, 1);
-            hasDrawnThisTurn = true;
+            drawCards(p,1);
+            hasDrawn=true;
             updateHand();
             updateBattle();
-            log('NFC扫描：获得卡牌');
-            sendData({ type: 'draw', player: game.currentPlayer, hand: p.hand });
+            log('NFC扫描成功：获得卡牌');
+            sendData({type:'draw',player:game.currentPlayer,hand:p.hand});
         }
-
-        function playCard(idx) {
-            const p = game.players[game.currentPlayer];
-            const c = p.hand[idx];
-            if(!c) return;
+        
+        function playCard(idx){
+            const p=game.players[game.currentPlayer];
+            const c=p.hand[idx];
+            if(!c)return;
             
-            if(c.type === 'attack' && game.enemy) {
-                game.enemy.hp -= c.value;
-                log(`${p.name} 造成${c.value}伤害`, 'damage');
-            } else if(c.type === 'heal') {
-                p.hp = Math.min(p.maxHp, p.hp + c.value);
-                log(`${p.name} 恢复${c.value}生命`, 'heal');
-            } else if(c.type === 'defense') {
-                p.defense += c.value;
-                log(`${p.name} 获得${c.value}防御`);
+            let ap=parseInt($('apText').innerText);
+            if(ap<c.cost){log('行动点不足！');return;}
+            
+            if(c.type==='attack'&&game.enemy){
+                game.enemy.hp-=c.value;
+                log(`${p.name}造成${c.value}伤害`,'damage');
+            }else if(c.type==='heal'){
+                p.hp=Math.min(p.maxHp,p.hp+c.value);
+                log(`${p.name}恢复${c.value}生命`,'heal');
+            }else if(c.type==='defense'){
+                p.defense+=c.value;
+                log(`${p.name}获得${c.value}防御`);
+            }else if(c.type==='aoe'&&game.enemy){
+                game.enemy.hp-=c.value;
+                log(`${p.name}AOE造成${c.value}伤害`,'damage');
             }
             
-            p.hand.splice(idx, 1);
-            updateHand(); updateBattle(); updateEnemy();
-            sendData({ type: 'action', player: game.currentPlayer, card: c });
+            p.hand.splice(idx,1);
+            $('apText').innerText=ap-c.cost;
+            updateHand();
+            updateBattle();
+            updateEnemy();
+            sendData({type:'action',player:game.currentPlayer,card:c});
             
-            if(game.enemy && game.enemy.hp <= 0) {
-                setTimeout(() => { alert('🎉 胜利！'); returnToLobby(); }, 100);
+            if(game.enemy&&game.enemy.hp<=0){
+                setTimeout(()=>{alert('🎉胜利！');returnToLobby();},100);
             }
         }
-
-        function handleRemoteAction(d) {
-            const p = game.players[d.player];
-            if(d.card.type === 'attack' && game.enemy) game.enemy.hp -= d.card.value;
-            if(d.card.type === 'heal') p.hp = Math.min(p.maxHp, p.hp + d.card.value);
-            if(d.card.type === 'defense') p.defense += d.card.value;
-            updateBattle(); updateEnemy();
+        
+        function handleRemoteAction(data){
+            const p=game.players[data.player];
+            if(data.card.type==='attack'&&game.enemy)game.enemy.hp-=data.card.value;
+            if(data.card.type==='heal')p.hp=Math.min(p.maxHp,p.hp+data.card.value);
+            if(data.card.type==='defense')p.defense+=data.card.value;
+            updateBattle();
+            updateEnemy();
         }
-
-        function handleRemoteDraw(d) {
-            game.players[d.player].hand = d.hand;
+        
+        function handleRemoteDraw(data){
+            game.players[data.player].hand=data.hand;
             updateBattle();
         }
-
-        function endTurn() {
-            hasDrawnThisTurn = false;
-            sendData({ type: 'turn' });
+        
+        function endTurn(){
+            sendData({type:'turn'});
             nextTurn();
         }
-
-        function nextTurn() {
-            game.currentPlayer = (game.currentPlayer + 1) % game.players.length;
-            if(game.currentPlayer === 0 && game.enemy && isHost) {
-                setTimeout(bossTurn, 500);
-            } else {
+        
+        function nextTurn(){
+            game.currentPlayer=(game.currentPlayer+1)%game.players.length;
+            if(game.currentPlayer===0&&game.enemy&&isHost){
+                setTimeout(bossTurn,500);
+            }else{
                 startTurn();
             }
         }
-
-        function bossTurn() {
-            if(!game.enemy || game.enemy.hp <= 0) return;
-            const alive = game.players.filter(p => !p.dead);
-            if(alive.length > 0) {
-                const t = alive[Math.floor(Math.random() * alive.length)];
-                let dmg = game.enemy.damage;
-                if(t.defense > 0) {
-                    const b = Math.min(t.defense, dmg);
-                    t.defense -= b; dmg -= b;
+        function bossTurn(){
+            if(!game.enemy||game.enemy.hp<=0)return;
+            const alive=game.players.filter(p=>!p.dead);
+            if(alive.length>0){
+                const t=alive[Math.floor(Math.random()*alive.length)];
+                let dmg=game.enemy.damage;
+                if(t.defense>0){
+                    const b=Math.min(t.defense,dmg);
+                    t.defense-=b;
+                    dmg-=b;
                     log(`Boss攻击被格挡${b}`);
                 }
-                t.hp -= dmg;
-                log(`Boss对${t.name}造成${dmg}伤害`, 'damage');
-                if(t.hp <= 0) { t.hp = 0; t.dead = true; log(`${t.name}倒下！`, 'damage'); }
+                t.hp-=dmg;
+                log(`Boss对${t.name}造成${dmg}伤害`,'damage');
+                if(t.hp<=0){
+                    t.hp=0;
+                    t.dead=true;
+                    log(`${t.name}倒下了！`,'damage');
+                }
             }
             updateBattle();
-            if(game.players.every(p => p.dead)) {
-                setTimeout(() => { alert('💀 全灭'); returnToLobby(); }, 100);
+            if(game.players.every(p=>p.dead)){
+                setTimeout(()=>{alert('💀全灭...');returnToLobby();},100);
                 return;
             }
             game.round++;
             startTurn();
         }
-
-        function aiTurn() {
-            const p = game.players[game.currentPlayer];
-            if(!p || !p.isAI) return;
-            if(p.hand.length > 0) { playCard(0); setTimeout(aiTurn, 800); }
-            else endTurn();
+        
+        function aiTurn(){
+            const p=game.players[game.currentPlayer];
+            if(!p||!p.isAI)return;
+            if(p.hand.length>0){
+                playCard(0);
+                setTimeout(aiTurn,800);
+            }else{
+                endTurn();
+            }
         }
-
-        function returnToLobby() {
-            game.battleActive = false;
-            document.getElementById('gameArea').classList.remove('active');
-            document.getElementById('lobby').classList.add('active');
-            game.players.forEach(p => { p.ready = false; p.hp = 100; p.hand = []; });
+        
+        function returnToLobby(){
+            game.battleActive=false;
+            $('gameArea').classList.remove('active');
+            $('lobby').classList.add('active');
+            game.players.forEach(p=>{
+                p.ready=false;
+                p.hp=100;
+                p.hand=[];
+                p.dead=false;
+            });
             updateLobby();
-        }
-
-        function log(msg, type = '') {
-            const box = document.getElementById('gameLog');
-            const div = document.createElement('div');
-            div.style.borderLeft = '3px solid ' + (type === 'damage' ? '#ff4757' : (type === 'heal' ? '#2ed573' : '#00d2ff'));
-            div.style.paddingLeft = '10px';
-            div.style.margin = '3px 0';
-            div.style.fontSize = '13px';
-            div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
-            box.appendChild(div);
-            box.scrollTop = box.scrollHeight;
-        }
-
-        function showPanel(id) { document.getElementById(id).classList.remove('hidden'); }
-        function hidePanel(id) { document.getElementById(id).classList.add('hidden'); }
-        function updateStatus(cls, txt) {
-            const s = document.getElementById('connectionStatus');
-            s.className = 'status ' + cls;
-            s.innerText = txt;
         }
     </script>
 </body>
