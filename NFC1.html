@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NFC 次元对决 - 联机版</title>
-    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <title>NFC 次元对决 - 修复版</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         :root{--neon-blue:#00f3ff;--neon-purple:#bc13fe;--neon-orange:#ff9500;--dark-bg:#0a0a0f;--card-bg:rgba(255,255,255,0.05)}
@@ -24,7 +24,7 @@
         .room-code-display{background:rgba(0,243,255,0.1);border:2px dashed var(--neon-blue);border-radius:16px;padding:30px;text-align:center;margin:20px 0}
         .room-code{font-size:3em;font-weight:bold;color:var(--neon-blue);letter-spacing:10px;font-family:'Courier New',monospace}
         .code-input{width:100%;padding:15px;font-size:1.5em;text-align:center;letter-spacing:5px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2);border-radius:12px;color:white;margin:10px 0}
-        .connection-status{text-align:center;padding:10px;border-radius:20px;margin:15px 0;font-weight:bold}
+        .connection-status{text-align:center;padding:10px;border-radius:20px;margin:15px 0;font-weight:bold;font-size:0.9em}
         .status-connecting{background:rgba(255,193,7,0.2);color:#ffc107}
         .status-connected{background:rgba(46,213,115,0.2);color:#2ed573}
         .status-error{background:rgba(255,71,87,0.2);color:#ff4757}
@@ -55,12 +55,12 @@
         .card-name{font-size:0.75em;text-align:center;font-weight:bold}
         .card-cost{position:absolute;top:5px;right:5px;background:var(--neon-orange);color:black;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:0.8em}
         .battle-log{height:120px;overflow-y:auto;background:rgba(0,0,0,0.3);border-radius:12px;padding:12px;margin-bottom:260px;font-size:0.85em;line-height:1.5}
-        .log-entry{margin:3px 0;padding:4px;border-left:2px solid var(--neon-blue);padding-left:8px;animation:slideIn 0.3s}
+        .log-entry{margin:3px 0;padding:4px;border-left:2px solid var(--neon-blue);padding-left:8px;animation:slideIn 0.3s;font-size:0.9em}
         @keyframes slideIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
         .damage{color:#ff4757;font-weight:bold}
         .heal{color:#2ed573;font-weight:bold}
         .combo{color:#ffa502;font-weight:bold}
-        .system{color:#74b9ff}
+        .system{color:#74b9ff;font-size:0.85em}
         .combo-indicator{position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);font-size:2.5em;font-weight:bold;color:var(--neon-orange);text-shadow:0 0 20px rgba(255,165,2,0.8);pointer-events:none;opacity:0;z-index:1000;text-align:center}
         .combo-indicator.show{animation:comboPop 1.5s forwards}
         @keyframes comboPop{0%{opacity:0;transform:translate(-50%,-50%) scale(0.5)}30%{opacity:1;transform:translate(-50%,-50%) scale(1.2)}100%{opacity:0;transform:translate(-50%,-50%) scale(1) translateY(-100px)}}
@@ -77,7 +77,8 @@
         .modal.active{display:flex}
         .modal-content{background:linear-gradient(135deg,#1a1a2e,#16213e);padding:25px;border-radius:20px;text-align:center;max-width:350px;width:100%;border:2px solid var(--neon-blue)}
         .modal-title{font-size:1.5em;margin-bottom:10px;color:var(--neon-blue)}
-        .modal-text{margin-bottom:20px;line-height:1.5}
+        .modal-text{margin-bottom:20px;line-height:1.5;font-size:0.9em}
+        .retry-btn{background:rgba(255,255,255,0.1);border:1px solid var(--neon-blue);color:var(--neon-blue);padding:8px 16px;border-radius:20px;margin-top:10px;cursor:pointer}
     </style>
 </head>
 <body>
@@ -91,10 +92,9 @@
         </div>
         <div style="text-align:center;margin-top:30px;color:#666;font-size:0.8em">
             <p>💡 联机无需服务器，手机直连</p>
-            <p>📍 确保双方在同一 WiFi 下效果最佳</p>
+            <p id="netStatus" style="color:#ffc107;margin-top:5px">🔴 未连接网络</p>
         </div>
     </div>
-
     <div id="lobby" class="screen">
         <h2 style="text-align:center;margin-bottom:20px">🌐 联机大厅</h2>
         <div class="lobby-container">
@@ -106,17 +106,20 @@
                         <div class="room-code" id="roomCode">------</div>
                         <div style="color:var(--neon-blue);margin-top:10px;font-size:0.9em">等待对手加入...<br><small>将代码发送给朋友</small></div>
                     </div>
-                    <button class="btn btn-secondary" onclick="net.copyCode()">📋 复制代码</button>
+                    <button class="btn btn-secondary" onclick="net.copyCode()" style="margin-top:10px">📋 复制代码</button>
                 </div>
             </div>
             <hr style="border:1px solid rgba(255,255,255,0.1);margin:30px 0">
             <div id="clientSection">
                 <div style="color:#888;margin-bottom:10px">加入现有房间</div>
                 <input type="text" class="code-input" id="joinCode" placeholder="输入6位代码" maxlength="6">
-                <button class="btn btn-warning" onclick="net.joinRoom()" id="joinBtn">🚀 加入对战</button>
+                <button class="btn btn-warning" onclick="net.joinRoom()" id="joinBtn" style="margin-top:10px">🚀 加入对战</button>
             </div>
-            <div id="connectionStatus" class="connection-status" style="display:none"></div>
-            <button class="btn btn-secondary" onclick="game.showScreen('mainMenu')" style="margin-top:30px">返回</button>
+            <div id="connectionStatus" class="connection-status" style="display:none;margin-top:15px"></div>
+            <div id="errorHelp" style="display:none;text-align:center;color:#888;font-size:0.8em;margin-top:10px">
+                如果无法连接，请使用<strong>本地练习</strong>模式
+            </div>
+            <button class="btn btn-secondary" onclick="game.showScreen('mainMenu')" style="margin-top:20px">返回</button>
         </div>
     </div>
 
@@ -153,7 +156,6 @@
             <div style="font-size:0.8em;color:#888;margin-top:10px">网络延迟: <span id="waitPing">--</span>ms</div>
         </div>
     </div>
-
     <div id="battleScreen" class="screen">
         <div style="text-align:center;padding:10px;background:rgba(0,243,255,0.1);border-radius:20px;margin-bottom:10px;font-size:0.9em;color:var(--neon-blue)">👤 练习模式</div>
         <div class="pvp-arena">
@@ -177,6 +179,7 @@
             <div class="cards-container" id="localHand"></div>
         </div>
     </div>
+
     <div id="collectionScreen" class="screen">
         <h2 style="text-align:center;margin-bottom:20px">📚 我的卡册</h2>
         <div id="collectionGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:10px"></div>
@@ -205,34 +208,100 @@
             'NFC-007':{name:'生命之泉',type:'heal',rarity:'epic',cost:2,power:40,icon:'💙',desc:'恢复40点生命'},
             'NFC-008':{name:'毁灭风暴',type:'attack',rarity:'legendary',cost:3,power:80,icon:'🌪️',desc:'造成80点毁灭伤害'}
         };
-
         const net={
             peer:null,conn:null,isHost:false,roomCode:'',pingInterval:null,
+            // 使用多个可用的 PeerJS 服务器
+            servers:[
+                {host:'0.peerjs.com',port:443,secure:true},
+                {host:'peerjs.com',port:443,secure:true},
+                {host:'peer.millenniumwar.com',port:443,secure:true}
+            ],
+            currentServer:0,
+            
             generateCode(){return Math.random().toString(36).substring(2,8).toUpperCase()},
+            
+            getPeerConfig(id){
+                const srv=this.servers[this.currentServer];
+                return{...srv,path:'/myapp',debug:1,...id?{id:id}:{}};
+            },
+            
             createRoom(){
                 this.isHost=true;this.roomCode=this.generateCode();
                 document.getElementById('roomCode').textContent=this.roomCode;
                 document.getElementById('roomInfo').style.display='block';
                 document.getElementById('createBtn').disabled=true;
                 this.updateStatus('正在创建房间...','connecting');
-                this.peer=new Peer(this.roomCode,{host:'peerjs-server.herokuapp.com',secure:true,port:443});
-                this.peer.on('open',()=>{this.updateStatus('房间已创建，等待对手...','connecting')});
-                this.peer.on('connection',(conn)=>{this.conn=conn;this.setupConnection();this.updateStatus('对手已连接！','connected');setTimeout(()=>game.startPvpGame(true),1000)});
-                this.peer.on('error',(err)=>{this.updateStatus('错误: '+err.message,'error')});
+                
+                try{
+                    this.peer=new Peer(this.roomCode,this.getPeerConfig());
+                    this.setupPeerEvents(true);
+                }catch(e){
+                    this.handleError('创建失败: '+e.message);
+                }
             },
+            
             joinRoom(){
-                const code=document.getElementById('joinCode').value.toUpperCase();
+                const code=document.getElementById('joinCode').value.toUpperCase().trim();
                 if(code.length!==6){alert('请输入6位房间代码');return}
-                this.isHost=false;this.roomCode=code;document.getElementById('joinBtn').disabled=true;
+                this.isHost=false;this.roomCode=code;
+                document.getElementById('joinBtn').disabled=true;
                 this.updateStatus('正在连接...','connecting');
-                this.peer=new Peer(null,{host:'peerjs-server.herokuapp.com',secure:true,port:443});
-                this.peer.on('open',()=>{this.conn=this.peer.connect(code,{reliable:true,serialization:'json'});this.setupConnection()});
-                this.peer.on('error',(err)=>{this.updateStatus('连接失败: '+err.message,'error');document.getElementById('joinBtn').disabled=false});
+                
+                try{
+                    this.peer=new Peer(null,this.getPeerConfig());
+                    this.peer.on('open',()=>{
+                        this.conn=this.peer.connect(code,{reliable:true,serialization:'json'});
+                        this.setupConnection();
+                    });
+                    this.peer.on('error',(err)=>this.handleError(err.message));
+                }catch(e){
+                    this.handleError('连接失败: '+e.message);
+                }
             },
+            
+            setupPeerEvents(isHost){
+                this.peer.on('open',()=>{
+                    this.updateStatus('房间已创建，等待对手...','connecting');
+                    document.getElementById('netStatus').textContent='🟢 网络就绪';
+                    document.getElementById('netStatus').style.color='#2ed573';
+                });
+                this.peer.on('connection',(conn)=>{
+                    if(!isHost)return;
+                    this.conn=conn;this.setupConnection();
+                    this.updateStatus('对手已连接！','connected');
+                    setTimeout(()=>game.startPvpGame(true),800);
+                });
+                this.peer.on('error',(err)=>this.handleError(err.message));
+            },
+            
             setupConnection(){
-                this.conn.on('open',()=>{this.updateStatus('已连接！','connected');if(!this.isHost)setTimeout(()=>game.startPvpGame(false),500);this.startPingCheck()});
-                this.conn.on('data',(data)=>{this.handleData(data)});
-                this.conn.on('close',()=>{this.updateStatus('连接已断开','error');alert('对手断开连接');location.reload()});
+                if(!this.conn)return;
+                this.conn.on('open',()=>{
+                    this.updateStatus('已连接！','connected');
+                    document.getElementById('netStatus').textContent='🟢 已连接对手';
+                    if(!this.isHost)setTimeout(()=>game.startPvpGame(false),500);
+                    this.startPingCheck();
+                });
+                this.conn.on('data',(data)=>this.handleData(data));
+                this.conn.on('close',()=>{
+                    this.updateStatus('连接已断开','error');
+                    alert('对手断开连接');location.reload();
+                });
+                this.conn.on('error',(err)=>console.error('连接错误:',err));
+            },
+            
+            handleError(msg){
+                console.error(msg);
+                this.updateStatus('连接失败，请使用本地模式','error');
+                document.getElementById('errorHelp').style.display='block';
+                document.getElementById('createBtn').disabled=false;
+                document.getElementById('joinBtn').disabled=false;
+                
+                // 尝试下一个服务器
+                if(this.currentServer<this.servers.length-1){
+                    this.currentServer++;
+                    console.log('尝试备用服务器...');
+                }
             },
             handleData(data){
                 if(data.type==='ping')this.send({type:'pong',time:data.time});
@@ -241,7 +310,10 @@
                     document.getElementById('pingDisplay').textContent='延迟: '+ping+'ms';
                     document.getElementById('pingDisplay').className='ping-display '+(ping<100?'ping-good':'ping-bad');
                     document.getElementById('waitPing').textContent=ping;
-                }else if(data.type==='gameAction')game.handleRemoteAction(data.action);
+                }else if(data.type==='gameAction'){
+                    if(data.action.type==='endTurn')game.handleEndTurn();
+                    else game.handleRemoteAction(data.action);
+                }
             },
             send(data){if(this.conn&&this.conn.open)this.conn.send(data)},
             startPingCheck(){this.pingInterval=setInterval(()=>this.send({type:'ping',time:Date.now()}),2000)},
@@ -249,7 +321,11 @@
                 const status=document.getElementById('connectionStatus');
                 status.textContent=text;status.className='connection-status status-'+type;status.style.display='block';
             },
-            copyCode(){navigator.clipboard.writeText(this.roomCode).then(()=>alert('房间代码已复制: '+this.roomCode))}
+            copyCode(){
+                const code=this.roomCode;
+                if(navigator.clipboard){navigator.clipboard.writeText(code).then(()=>alert('房间代码: '+code))}
+                else{prompt('复制此代码:',code);}
+            }
         };
 
         const game={
@@ -268,7 +344,7 @@
                 this.combo={count:0,lastType:null,multiplier:1};
                 this.self.hand=this.drawInitialCards();
                 this.updatePvpUI();this.showScreen('pvpScreen');
-                this.log('pvp','⚔️ PVP 开始！'+(host?'你是主机，先手':'你是客人，等待对手'),'system');
+                this.log('pvp','⚔️ PVP 开始！'+(host?'你是主机，先手':'你是客人，后手'),'system');
                 if(!this.isMyTurn)document.getElementById('waitingOverlay').classList.add('active');
             },
             startLocalBattle(){
@@ -284,7 +360,7 @@
             },
             renderPvpHand(){
                 const container=document.getElementById('pvpHand');container.innerHTML='';
-                if(!this.isMyTurn){container.innerHTML='<div style="color:#888;text-align:center;width:100%">等待对手回合...</div>';return}
+                if(!this.isMyTurn){container.innerHTML='<div style="color:#888;text-align:center;width:100%;padding:20px">等待对手回合...</div>';return}
                 this.self.hand.forEach((card,index)=>{
                     const div=document.createElement('div');const canPlay=card.cost<=this.actionPoints;
                     div.className='card card-rarity-'+card.rarity+(canPlay?'':' disabled');
@@ -355,39 +431,4 @@
                 document.getElementById('oppoHp').style.width=(this.opponent.hp/this.opponent.maxHp*100)+'%';document.getElementById('oppoHpText').textContent=this.opponent.hp;
                 document.getElementById('pvpActionPoints').textContent=this.actionPoints;
                 document.getElementById('pvpTurnText').textContent=this.isMyTurn?'🎮 你的回合':'⏳ 对手回合';
-                document.getElementById('selfFighter').classList.toggle('active',this.isMyTurn);document.getElementById('oppoFighter').classList.toggle('active',!this.isMyTurn);
-                document.getElementById('endTurnBtn').disabled=!this.isMyTurn;this.renderPvpHand();
-            },
-            updateLocalUI(){
-                document.getElementById('playerHp').style.width=(this.localPlayer.hp/this.localPlayer.maxHp*100)+'%';document.getElementById('playerHpText').textContent=this.localPlayer.hp;
-                document.getElementById('enemyHp').style.width=(this.localEnemy.hp/this.localEnemy.maxHp*100)+'%';document.getElementById('enemyHpText').textContent=this.localEnemy.hp;
-                document.getElementById('localActionPoints').textContent=this.actionPoints;this.renderLocalHand();
-            },
-            checkPvpWin(){
-                if(this.opponent.hp<=0){setTimeout(()=>this.showModal('🏆','胜利！','你击败了对手！'),500);net.send({type:'gameAction',action:{type:'defeat'}})}
-                else if(this.self.hp<=0)setTimeout(()=>this.showModal('💀','失败','再接再厉！'),500);
-            },
-            checkLocalWin(){if(this.localEnemy.hp<=0)this.showModal('🏆','胜利！','练习模式胜利！')},
-            showCombo(count){
-                if(count>0){const indicator=document.getElementById('comboIndicator');indicator.textContent='连击 x'+(count+1)+'!';indicator.classList.add('show');setTimeout(()=>indicator.classList.remove('show'),1500);this.log(this.mode,'⚡ 连击 x'+(count+1)+'! 伤害提升 '+Math.floor(count*20)+'%','combo')}
-            },
-            log(mode,message,type){
-                const logId=mode==='pvp'?'pvpLog':'battleLog';const logDiv=document.getElementById(logId);const entry=document.createElement('div');entry.className='log-entry '+type;entry.innerHTML=message;logDiv.appendChild(entry);logDiv.scrollTop=logDiv.scrollHeight;
-            },
-            showModal(icon,title,text){document.getElementById('resultIcon').textContent=icon;document.getElementById('resultTitle').textContent=title;document.getElementById('resultText').textContent=text;document.getElementById('resultModal').classList.add('active')},
-            closeModal(){document.getElementById('resultModal').classList.remove('active');this.showScreen('mainMenu');if(net.conn)net.conn.close();if(net.peer)net.peer.destroy();location.reload()},
-            async startScan(){
-                if('NDEFReader' in window){try{const ndef=new NDEFReader();await ndef.scan();alert('请将 NFC 卡片贴近手机背面');ndef.addEventListener("reading",({serialNumber})=>{this.processNFC(serialNumber)})}catch(e){alert('NFC 扫描需要 HTTPS 环境，请使用本地练习模式收集卡牌')}}
-                else{const rewards=['NFC-004','NFC-005','NFC-006','NFC-007','NFC-008'];const reward=rewards[Math.floor(Math.random()*rewards.length)];this.collection.add(reward);this.showModal('🎴','模拟扫描成功','获得新卡牌: '+CARD_DB[reward].name)}
-            },
-            processNFC(id){if(CARD_DB[id]&&!this.collection.has(id)){this.collection.add(id);this.showModal('🎉','新卡牌！','获得 '+CARD_DB[id].name)}},
-            showCollection(){
-                const grid=document.getElementById('collectionGrid');grid.innerHTML='';
-                Object.keys(CARD_DB).forEach(id=>{const card=CARD_DB[id];const owned=this.collection.has(id);const div=document.createElement('div');div.className='card '+(owned?'card-rarity-'+card.rarity:'');div.style.opacity=owned?'1':'0.3';div.innerHTML='<div class="card-icon">'+(owned?card.icon:'?')+'</div><div class="card-name" style="font-size:0.7em">'+(owned?card.name:'???')+'</div>';grid.appendChild(div)});
-                this.showScreen('collectionScreen');
-            }
-        };
-        document.addEventListener('touchstart',function(e){if(e.touches.length>1)e.preventDefault()},{passive:false});
-    </script>
-</body>
-</html>
+                docu
