@@ -2,707 +2,772 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NFC卡牌对战</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NFC 次元对决 - 联机版</title>
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;min-height:100vh;padding:10px}
-        .container{max-width:800px;margin:0 auto}
-        .btn{background:linear-gradient(45deg,#00d2ff,#3a7bd5);border:none;padding:12px 24px;color:#fff;border-radius:25px;cursor:pointer;font-size:16px;margin:5px}
-        .btn:active{transform:scale(0.95)}
-        .panel{background:rgba(0,0,0,0.3);border-radius:15px;padding:20px;margin:15px 0}
-        .status{display:inline-block;padding:5px 15px;border-radius:20px;font-size:14px;background:#ff4757;margin-bottom:10px}
-        .status.connected{background:#2ed573}
-        .signal-box{width:100%;min-height:60px;background:rgba(0,0,0,0.5);border:1px solid #00d2ff;border-radius:8px;padding:10px;margin:10px 0;font-family:monospace;font-size:11px;color:#00d2ff;word-break:break-all}
-        .hidden{display:none!important}
-        .lobby{display:none}.lobby.active{display:block}
-        .game-area{display:none}.game-area.active{display:block}
-        .players-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:15px 0}
-        .player-card{background:rgba(255,255,255,0.1);border-radius:10px;padding:15px;text-align:center;border:2px solid transparent}
-        .player-card.ready{border-color:#2ed573}
-        .player-card.current-turn{border-color:#ffd700;box-shadow:0 0 10px rgba(255,215,0,0.5)}
-        .hp-bar{width:100%;height:20px;background:rgba(0,0,0,0.5);border-radius:10px;overflow:hidden;margin:5px 0}
-        .hp-fill{height:100%;background:#2ed573;transition:width 0.3s;display:flex;align-items:center;justify-content:center;font-size:12px}
-        .hp-fill.enemy{background:#ff4757}
-        .card{width:80px;height:110px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:8px;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;margin:3px;padding:5px;font-size:11px;cursor:pointer;border:2px solid rgba(255,255,255,0.3)}
-        .card-hand{text-align:center;margin:10px 0;min-height:120px}
-        .log-box{max-height:120px;overflow-y:auto;background:rgba(0,0,0,0.3);padding:10px;border-radius:8px;font-size:13px;margin-top:15px;text-align:left}
-        .enemy-section{text-align:center;padding:15px;background:rgba(255,71,87,0.2);border-radius:15px;margin-bottom:15px;border:2px solid #ff4757}
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-purple: #bc13fe;
+            --neon-orange: #ff9500;
+            --dark-bg: #0a0a0f;
+            --card-bg: rgba(255, 255, 255, 0.05);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--dark-bg);
+            color: white;
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
+        
+        .screen {
+            display: none;
+            min-height: 100vh;
+            padding: 20px;
+            animation: fadeIn 0.5s;
+        }
+        
+        .screen.active { display: block; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .game-title {
+            text-align: center;
+            font-size: 2.2em;
+            font-weight: bold;
+            margin: 20px 0;
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .menu-grid {
+            display: grid;
+            gap: 15px;
+            max-width: 350px;
+            margin: 30px auto;
+        }
+        
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--neon-blue), #0080ff);
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 243, 255, 0.4);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, var(--neon-orange), #ff6348);
+            color: white;
+        }
+        
+        .btn:active { transform: scale(0.95); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .lobby-container { max-width: 400px; margin: 0 auto; }
+        
+        .room-code-display {
+            background: rgba(0, 243, 255, 0.1);
+            border: 2px dashed var(--neon-blue);
+            border-radius: 16px;
+            padding: 30px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .room-code {
+            font-size: 3em;
+            font-weight: bold;
+            color: var(--neon-blue);
+            letter-spacing: 10px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .code-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.5em;
+            text-align: center;
+            letter-spacing: 5px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            color: white;
+            margin: 10px 0;
+        }
+        
+        .connection-status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 20px;
+            margin: 15px 0;
+            font-weight: bold;
+        }
+        
+        .status-connecting { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
+        .status-connected { background: rgba(46, 213, 115, 0.2); color: #2ed573; }
+        .status-error { background: rgba(255, 71, 87, 0.2); color: #ff4757; }
+        
+        .pvp-arena {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .fighter {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 15px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .fighter.active {
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
+            animation: glow 2s infinite;
+        }
+        
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(0, 243, 255, 0.3); }
+            50% { box-shadow: 0 0 30px rgba(0, 243, 255, 0.6); }
+        }
+        
+        .fighter-tag {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--neon-purple);
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 0.7em;
+            font-weight: bold;
+        }
+        
+        .fighter-avatar {
+            width: 70px;
+            height: 70px;
+            margin: 10px auto;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+        }
+        
+        .hp-bar {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        
+        .hp-fill {
+            height: 100%;
+            transition: width 0.5s ease;
+        }
+        
+        .hp-fill.player { background: linear-gradient(90deg, #00d26a, #00f3ff); }
+        .hp-fill.enemy { background: linear-gradient(90deg, #ff4757, #ff6348); }
+        .hp-text { font-size: 0.85em; color: #aaa; }
+        .hand-area {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
+            padding: 20px;
+            padding-bottom: 30px;
+        }
+        
+        .action-points {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 1em;
+            color: var(--neon-orange);
+        }
+        
+        .turn-timer {
+            text-align: center;
+            color: #ff4757;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .cards-container {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 10px;
+            scrollbar-width: none;
+        }
+        
+        .cards-container::-webkit-scrollbar { display: none; }
+        
+        .card {
+            min-width: 90px;
+            height: 130px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card:active { transform: scale(0.95); }
+        .card.selected {
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+            transform: translateY(-10px);
+        }
+        .card.disabled {
+            opacity: 0.4;
+            pointer-events: none;
+            filter: grayscale(100%);
+        }
+        .card-rarity-common { border-color: #888; }
+        .card-rarity-rare { border-color: #0080ff; }
+        .card-rarity-epic { border-color: #bc13fe; }
+        .card-rarity-legendary { border-color: #ff9500; animation: legendary-glow 2s infinite; }
+        
+        @keyframes legendary-glow {
+            0%, 100% { box-shadow: 0 0 10px rgba(255, 149, 0, 0.5); }
+            50% { box-shadow: 0 0 25px rgba(255, 149, 0, 0.8); }
+        }
+        
+        .card-icon { font-size: 1.8em; }
+        .card-name { font-size: 0.75em; text-align: center; font-weight: bold; }
+        .card-cost { 
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: var(--neon-orange);
+            color: black;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.8em;
+        }
+        
+        .battle-log {
+            height: 120px;
+            overflow-y: auto;
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 260px;
+            font-size: 0.85em;
+            line-height: 1.5;
+        }
+        
+        .log-entry {
+            margin: 3px 0;
+            padding: 4px;
+            border-left: 2px solid var(--neon-blue);
+            padding-left: 8px;
+            animation: slideIn 0.3s;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .damage { color: #ff4757; font-weight: bold; }
+        .heal { color: #2ed573; font-weight: bold; }
+        .combo { color: #ffa502; font-weight: bold; }
+        .system { color: #74b9ff; }
+        
+        .combo-indicator {
+            position: fixed;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2.5em;
+            font-weight: bold;
+            color: var(--neon-orange);
+            text-shadow: 0 0 20px rgba(255, 165, 2, 0.8);
+            pointer-events: none;
+            opacity: 0;
+            z-index: 1000;
+            text-align: center;
+        }
+        
+        .combo-indicator.show { animation: comboPop 1.5s forwards; }
+        
+        @keyframes comboPop {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+            30% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1) translateY(-100px); }
+        }
+        
+        .end-turn-btn {
+            position: fixed;
+            bottom: 230px;
+            right: 15px;
+            background: var(--neon-purple);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(188, 19, 254, 0.4);
+            z-index: 100;
+            font-size: 0.9em;
+        }
+        .end-turn-btn:disabled { background: #555; box-shadow: none; }
+        
+        .waiting-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 500;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        .waiting-overlay.active { display: flex; }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: var(--neon-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .ping-display {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.75em;
+            color: #aaa;
+        }
+        .ping-good { color: #2ed573; }
+        .ping-bad { color: #ff4757; }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal.active { display: flex; }
+        
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            padding: 25px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 350px;
+            width: 100%;
+            border: 2px solid var(--neon-blue);
+        }
+        .modal-title {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            color: var(--neon-blue);
+        }
+        .modal-text { margin-bottom: 20px; line-height: 1.5; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1 style="text-align:center">🔮 NFC卡牌对战</h1>
-        
-        <div class="panel" id="connectionPanel">
-            <div id="connectionStatus" class="status">未连接</div>
-            <div id="createRoomSection">
-                <button class="btn" onclick="createRoom()">🏠 创建房间</button>
-                <p style="margin-top:10px;font-size:12px;color:#aaa">点击生成邀请代码</p>
-            </div>
-            <div id="joinRoomSection" style="margin-top:15px">
-                <button class="btn" onclick="showJoin()">🚪 加入房间</button>
-            </div>
-            <div id="joinInputSection" class="hidden" style="margin-top:15px">
-                <textarea class="signal-box" id="remoteSignal" placeholder="粘贴房主的代码..."></textarea>
-                <button class="btn" onclick="joinRoom()">连接</button>
-                <button class="btn" onclick="hide('joinInputSection');show('createRoomSection')">取消</button>
-            </div>
-            <div id="signalExchange" class="hidden" style="margin-top:15px">
-                <p style="color:#ffd700">📋 发送此代码给对方：</p>
-                <textarea class="signal-box" id="localSignal" readonly onclick="this.select()"></textarea>
-                <p style="font-size:12px;margin:10px 0">对方回应后粘贴下方：</p>
-                <textarea class="signal-box" id="answerSignal" placeholder="粘贴回应代码..."></textarea>
-                <button class="btn" style="background:linear-gradient(45deg,#2ed573,#7bed9f)" onclick="completeConnection()">完成连接</button>
-            </div>
-            <div id="connectedControls" class="hidden" style="margin-top:15px">
-                <span style="color:#2ed573">✓ 已连接</span>
-                <button class="btn" style="background:#ff4757;margin-left:10px" onclick="location.reload()">断开</button>
-            </div>
+    <div id="mainMenu" class="screen active">
+        <h1 class="game-title">⚡ NFC 次元对决 ⚡<br><small style="font-size: 0.4em; color: #888;">P2P 联机版</small></h1>
+        <div class="menu-grid">
+            <button class="btn btn-primary" onclick="game.showScreen('lobby')">🌐 联机对战</button>
+            <button class="btn btn-secondary" onclick="game.startLocalBattle()">👤 本地练习</button>
+            <button class="btn btn-secondary" onclick="game.startScan()">📱 NFC 扫卡</button>
+            <button class="btn btn-secondary" onclick="game.showCollection()">📚 卡册</button>
         </div>
-
-        <div class="lobby" id="lobby">
-            <div class="panel" style="text-align:center">
-                <h3>游戏大厅</h3>
-                <p>模式：<span id="currentMode" style="color:#00d2ff;font-weight:bold">未选择</span></p>
-                <div id="modeSelector" class="hidden">
-                    <button class="btn" onclick="selectMode('pve')">👥 PVE合作</button>
-                    <button class="btn" onclick="selectMode('pvp')">⚔️ PVP对战</button>
-                </div>
-            </div>
-            <div class="players-grid" id="playersGrid"></div>
-            <div class="panel hidden" id="lobbyControls" style="text-align:center">
-                <button class="btn" onclick="toggleReady()" id="readyBtn">准备</button>
-                <button class="btn hidden" style="background:linear-gradient(45deg,#2ed573,#7bed9f)" onclick="startGame()" id="startBtn">开始游戏</button>
-                <button class="btn" style="background:#ff4757" onclick="addAI()">添加AI</button>
-            </div>
-        </div>
-        <div class="game-area" id="gameArea">
-            <div class="panel">
-                <div class="enemy-section hidden" id="enemySection">
-                    <h3>👹 混沌巨兽 (难度<span id="difficulty">1</span>x)</h3>
-                    <div class="hp-bar"><div class="hp-fill enemy" id="enemyHpBar" style="width:100%">1000/1000</div></div>
-                </div>
-                <div class="players-grid" id="battleGrid"></div>
-                <div style="text-align:center;margin:10px 0">
-                    <span style="font-size:16px">行动点：<b id="apText" style="color:#ffd700">3</b>/3 | 回合：<b id="roundText">1</b></span>
-                </div>
-                <div class="card-hand" id="cardHand"></div>
-                <div style="text-align:center">
-                    <button class="btn" onclick="scanNFC()">📱 NFC抽卡</button>
-                    <button class="btn" onclick="endTurn()">结束回合</button>
-                    <button class="btn" style="background:#ff4757" onclick="returnToLobby()">退出</button>
-                </div>
-                <div class="log-box" id="gameLog"></div>
-            </div>
+        <div style="text-align: center; margin-top: 30px; color: #666; font-size: 0.8em;">
+            <p>💡 联机无需服务器，手机直连</p>
+            <p>📍 确保双方在同一 WiFi 下效果最佳</p>
         </div>
     </div>
 
+    <div id="lobby" class="screen">
+        <h2 style="text-align: center; margin-bottom: 20px;">🌐 联机大厅</h2>
+        <div class="lobby-container">
+            <div id="hostSection">
+                <button class="btn btn-primary" onclick="net.createRoom()" id="createBtn">🏠 创建房间</button>
+                <div id="roomInfo" style="display: none; margin-top: 20px;">
+                    <div class="room-code-display">
+                        <div style="color: #888; margin-bottom: 5px;">房间代码</div>
+                        <div class="room-code" id="roomCode">------</div>
+                        <div style="color: var(--neon-blue); margin-top: 10px; font-size: 0.9em;">
+                            等待对手加入...<br><small>将代码发送给朋友</small>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" onclick="net.copyCode()">📋 复制代码</button>
+                </div>
+            </div>
+            <hr style="border: 1px solid rgba(255,255,255,0.1); margin: 30px 0;">
+            <div id="clientSection">
+                <div style="color: #888; margin-bottom: 10px;">加入现有房间</div>
+                <input type="text" class="code-input" id="joinCode" placeholder="输入6位代码" maxlength="6">
+                <button class="btn btn-warning" onclick="net.joinRoom()" id="joinBtn">🚀 加入对战</button>
+            </div>
+            <div id="connectionStatus" class="connection-status" style="display: none;"></div>
+            <button class="btn btn-secondary" onclick="game.showScreen('mainMenu')" style="margin-top: 30px;">返回</button>
+        </div>
+    </div>
+
+    <div id="pvpScreen" class="screen">
+        <div class="ping-display" id="pingDisplay">延迟: --ms</div>
+        <div style="text-align: center; padding: 10px; background: rgba(188, 19, 254, 0.1); border-radius: 20px; margin-bottom: 10px; font-size: 0.9em;">
+            <span id="pvpTurnText">🎮 你的回合</span>
+        </div>
+        <div class="pvp-arena">
+            <div class="fighter active" id="selfFighter">
+                <div class="fighter-tag">你</div>
+                <div class="fighter-avatar" id="selfAvatar">🧙‍♂️</div>
+                <div id="selfName">勇者</div>
+                <div class="hp-bar">
+                    <div class="hp-fill player" id="selfHp" style="width: 100%"></div>
+                </div>
+                <div class="hp-text"><span id="selfHpText">100</span>/100</div>
+            </div>
+            <div class="fighter" id="oppoFighter">
+                <div class="fighter-tag">对手</div>
+                <div class="fighter-avatar" id="oppoAvatar">👹</div>
+                <div id="oppoName">等待...</div>
+                <div class="hp-bar">
+                    <div class="hp-fill enemy" id="oppoHp" style="width: 100%"></div>
+                </div>
+                <div class="hp-text"><span id="oppoHpText">100</span>/100</div>
+            </div>
+        </div>
+        <div class="battle-log" id="pvpLog">
+            <div class="log-entry system">⚔️ PVP 对战开始！击败对手！</div>
+        </div>
+        <button class="end-turn-btn" id="endTurnBtn" onclick="game.endPvpTurn()">结束回合 →</button>
+        <div class="hand-area">
+            <div class="turn-timer" id="turnTimer"></div>
+            <div class="action-points">⚡ 行动点: <span id="pvpActionPoints">3</span>/3</div>
+            <div class="cards-container" id="pvpHand"></div>
+        </div>
+        <div class="waiting-overlay" id="waitingOverlay">
+            <div class="spinner"></div>
+            <div>等待对手行动...</div>
+            <div style="font-size: 0.8em; color: #888; margin-top: 10px;">网络延迟: <span id="waitPing">--</span>ms</div>
+        </div>
+    </div>
+
+    <div id="battleScreen" class="screen">
+        <div style="text-align: center; padding: 10px; background: rgba(0, 243, 255, 0.1); border-radius: 20px; margin-bottom: 10px; font-size: 0.9em; color: var(--neon-blue);">
+            👤 练习模式
+        </div>
+        <div class="pvp-arena">
+            <div class="fighter active" id="playerFighter">
+                <div class="fighter-avatar">🧙‍♂️</div>
+                <div>勇者</div>
+                <div class="hp-bar">
+                    <div class="hp-fill player" id="playerHp" style="width: 100%"></div>
+                </div>
+                <div class="hp-text"><span id="playerHpText">100</span>/100</div>
+            </div>
+            <div class="fighter" id="enemyFighter">
+                <div class="fighter-avatar">👹</div>
+                <div>暗影魔王</div>
+                <div class="hp-bar">
+                    <div class="hp-fill enemy" id="enemyHp" style="width: 100%"></div>
+                </div>
+                <div class="hp-text"><span id="enemyHpText">150</span>/150</div>
+            </div>
+        </div>
+        <div class="battle-log" id="battleLog" style="margin-bottom: 250px;">
+            <div class="log-entry">⚔️ 练习模式开始！</div>
+        </div>
+        <button class="end-turn-btn" onclick="game.endLocalTurn()">结束回合 →</button>
+        <div class="hand-area">
+            <div class="action-points">⚡ 行动点: <span id="localActionPoints">3</span>/3</div>
+            <div class="cards-container" id="localHand"></div>
+        </div>
+    </div>
+
+    <div id="collectionScreen" class="screen">
+        <h2 style="text-align: center; margin-bottom: 20px;">📚 我的卡册</h2>
+        <div id="collectionGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 10px;"></div>
+        <button class="btn btn-primary" onclick="game.showScreen('mainMenu')" style="margin-top: 20px;">返回</button>
+    </div>
+
+    <div id="resultModal" class="modal">
+        <div class="modal-content">
+            <div id="resultIcon" style="font-size: 3em; margin-bottom: 10px;">🏆</div>
+            <div class="modal-title" id="resultTitle">胜利！</div>
+            <div class="modal-text" id="resultText">你击败了对手！</div>
+            <button class="btn btn-primary" onclick="game.closeModal()" style="margin-top: 15px;">确定</button>
+        </div>
+    </div>
+
+    <div id="comboIndicator" class="combo-indicator">连击 x2!</div>
+
     <script>
-        // 调试：如果JS加载失败会报错
-        console.log('JS开始加载');
-        
-        // 全局变量
-        var pc = null;
-        var dc = null;
-        var isHost = false;
-        var game = {
-            mode: 'pve',
-            players: [],
-            currentPlayer: 0,
-            round: 1,
-            enemy: null,
-            battleActive: false,
-            myId: null
+        const CARD_DB = {
+            'NFC-001': { name: '火球术', type: 'attack', rarity: 'common', cost: 1, power: 15, icon: '🔥', desc: '造成15点伤害' },
+            'NFC-002': { name: '冰冻箭', type: 'attack', rarity: 'common', cost: 1, power: 12, icon: '❄️', desc: '造成12点伤害' },
+            'NFC-003': { name: '治愈之光', type: 'heal', rarity: 'common', cost: 1, power: 20, icon: '💚', desc: '恢复20点生命' },
+            'NFC-004': { name: '雷霆斩', type: 'attack', rarity: 'rare', cost: 2, power: 35, icon: '⚡', desc: '造成35点伤害' },
+            'NFC-005': { name: '圣盾术', type: 'defense', rarity: 'rare', cost: 1, power: 20, icon: '🛡️', desc: '获得20点护盾' },
+            'NFC-006': { name: '暗影突袭', type: 'attack', rarity: 'epic', cost: 2, power: 45, icon: '🗡️', desc: '造成45点伤害' },
+            'NFC-007': { name: '生命之泉', type: 'heal', rarity: 'epic', cost: 2, power: 40, icon: '💙', desc: '恢复40点生命' },
+            'NFC-008': { name: '毁灭风暴', type: 'attack', rarity: 'legendary', cost: 3, power: 80, icon: '🌪️', desc: '造成80点毁灭伤害' }
         };
-        
-        // 卡牌数据库
-        var CARD_DB = [
-            {name:'火球术',type:'attack',value:25,cost:1,desc:'造成25伤害'},
-            {name:'治疗术',type:'heal',value:30,cost:1,desc:'恢复30生命'},
-            {name:'护盾',type:'defense',value:20,cost:1,desc:'获得20防御'},
-            {name:'毒刃',type:'poison',value:15,cost:1,desc:'15伤害+中毒'},
-            {name:'重击',type:'attack',value:40,cost:2,desc:'造成40伤害'}
-        ];
-        
-        // 辅助函数
-        function $(id){return document.getElementById(id)}
-        function show(id){$(id).classList.remove('hidden')}
-        function hide(id){$(id).classList.add('hidden')}
-        function log(msg,type){
-            var box=$('gameLog');
-            var div=document.createElement('div');
-            div.style.cssText='margin:3px 0;padding-left:8px;border-left:3px solid '+(type==='damage'?'#ff4757':(type==='heal'?'#2ed573':'#00d2ff'))+';font-size:13px';
-            div.innerText='['+new Date().toLocaleTimeString()+'] '+msg;
-            box.appendChild(div);
-            box.scrollTop=box.scrollHeight;
-        }
-        function setStatus(cls,text){
-            var s=$('connectionStatus');
-            s.className='status '+cls;
-            s.innerText=text;
-        }
-        
-        console.log('基础函数定义完成');
-        // 创建房间
-        function createRoom(){
-            try{
-                console.log('开始创建房间');
-                alert('正在创建房间...');
+
+        const net = {
+            peer: null,
+            conn: null,
+            isHost: false,
+            roomCode: '',
+            pingInterval: null,
+            lastPingTime: 0,
+            
+            generateCode() {
+                return Math.random().toString(36).substring(2, 8).toUpperCase();
+            },
+            
+            createRoom() {
+                this.isHost = true;
+                this.roomCode = this.generateCode();
+                document.getElementById('roomCode').textContent = this.roomCode;
+                document.getElementById('roomInfo').style.display = 'block';
+                document.getElementById('createBtn').disabled = true;
+                this.updateStatus('正在创建房间...', 'connecting');
                 
-                isHost=true;
-                game.myId='host';
+                this.peer = new Peer(this.roomCode, {
+                    host: 'peerjs-server.herokuapp.com',
+                    secure: true,
+                    port: 443,
+                    debug: 2
+                });
                 
-                // 检查浏览器支持
-                if(!window.RTCPeerConnection){
-                    alert('您的浏览器不支持WebRTC，请使用Chrome/Safari/Edge');
+                this.peer.on('open', (id) => {
+                    this.updateStatus('房间已创建，等待对手...', 'connecting');
+                    console.log('Host ID:', id);
+                });
+                
+                this.peer.on('connection', (conn) => {
+                    this.conn = conn;
+                    this.setupConnection();
+                    this.updateStatus('对手已连接！', 'connected');
+                    setTimeout(() => game.startPvpGame(true), 1000);
+                });
+                
+                this.peer.on('error', (err) => {
+                    this.updateStatus('错误: ' + err.message, 'error');
+                });
+            },
+            
+            joinRoom() {
+                const code = document.getElementById('joinCode').value.toUpperCase();
+                if (code.length !== 6) {
+                    alert('请输入6位房间代码');
                     return;
                 }
+                this.isHost = false;
+                this.roomCode = code;
+                document.getElementById('joinBtn').disabled = true;
+                this.updateStatus('正在连接...', 'connecting');
                 
-                pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});
-                console.log('RTCPeerConnection创建成功');
-                
-                dc=pc.createDataChannel('game',{ordered:true});
-                setupDataChannel(dc);
-                
-                pc.createOffer().then(function(offer){
-                    console.log('Offer创建成功');
-                    return pc.setLocalDescription(offer);
-                }).then(function(){
-                    console.log('LocalDescription设置成功');
-                    // 等待ICE收集
-                    setTimeout(function(){
-                        var code=btoa(JSON.stringify(pc.localDescription));
-                        $('localSignal').value=code;
-                        show('signalExchange');
-                        hide('createRoomSection');
-                        hide('joinRoomSection');
-                        setStatus('connecting','等待对方加入...');
-                        console.log('房间创建完成，代码已生成');
-                    },1000);
-                }).catch(function(e){
-                    alert('创建失败：'+e.message);
-                    console.error(e);
+                this.peer = new Peer(null, {
+                    host: 'peerjs-server.herokuapp.com',
+                    secure: true,
+                    port: 443
                 });
                 
-                pc.onicecandidate=function(e){
-                    if(!e.candidate){
-                        var code=btoa(JSON.stringify(pc.localDescription));
-                        $('localSignal').value=code;
+                this.peer.on('open', () => {
+                    this.conn = this.peer.connect(code, {
+                        reliable: true,
+                        serialization: 'json'
+                    });
+                    this.setupConnection();
+                });
+                
+                this.peer.on('error', (err) => {
+                    this.updateStatus('连接失败: ' + err.message, 'error');
+                    document.getElementById('joinBtn').disabled = false;
+                });
+            },
+            
+            setupConnection() {
+                this.conn.on('open', () => {
+                    this.updateStatus('已连接！', 'connected');
+                    if (!this.isHost) {
+                        setTimeout(() => game.startPvpGame(false), 500);
                     }
-                };
-            }catch(e){
-                alert('错误：'+e.message);
-                console.error(e);
-            }
-        }
-        
-        // 显示加入界面
-        function showJoin(){
-            hide('createRoomSection');
-            show('joinInputSection');
-        }
-        
-        // 加入房间
-        function joinRoom(){
-            var txt=$('remoteSignal').value.trim();
-            if(!txt){
-                alert('请输入连接代码');
-                return;
-            }
-            
-            try{
-                var offer=JSON.parse(atob(txt));
-                pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});
+                    this.startPingCheck();
+                });
                 
-                pc.ondatachannel=function(e){
-                    dc=e.channel;
-                    setupDataChannel(dc);
-                };
+                this.conn.on('data', (data) => {
+                    this.handleData(data);
+                });
                 
-                pc.setRemoteDescription(offer).then(function(){
-                    return pc.createAnswer();
-                }).then(function(answer){
-                    return pc.setLocalDescription(answer);
-                }).then(function(){
-                    setTimeout(function(){
-                        var code=btoa(JSON.stringify(pc.localDescription));
-                        $('localSignal').value=code;
-                        show('signalExchange');
-                        hide('joinInputSection');
-                        setStatus('connecting','等待房主确认...');
-                        alert('请将下方代码发送给房主！');
-                    },1000);
-                }).catch(function(e){
-                    alert('连接失败：'+e.message);
+                this.conn.on('close', () => {
+                    this.updateStatus('连接已断开', 'error');
+                    alert('对手断开连接');
+                    location.reload();
                 });
-            }catch(e){
-                alert('无效代码：'+e.message);
-            }
-        }
-        
-        // 完成连接
-        function completeConnection(){
-            var txt=$('answerSignal').value.trim();
-            if(!txt)return;
-            
-            try{
-                var answer=JSON.parse(atob(txt));
-                pc.setRemoteDescription(answer).then(function(){
-                    console.log('连接成功建立');
-                }).catch(function(e){
-                    alert('无效回应：'+e.message);
+                
+                this.conn.on('error', (err) => {
+                    console.error('连接错误:', err);
                 });
-            }catch(e){
-                alert('格式错误：'+e.message);
-            }
-        }
-        
-        // 设置数据通道
-        function setupDataChannel(channel){
-            channel.onopen=function(){
-                console.log('数据通道已打开');
-                setStatus('connected','已连接');
-                show('connectedControls');
-                hide('signalExchange');
-                enterLobby();
-            };
-            channel.onmessage=function(e){
-                handleData(JSON.parse(e.data));
-            };
-            channel.onclose=function(){
-                setStatus('disconnected','连接断开');
-            };
-        }
-        
-        // 发送数据
-        function sendData(data){
-            if(dc&&dc.readyState==='open'){
-                dc.send(JSON.stringify(data));
-            }
-        }
-        
-        // 处理接收数据
-        function handleData(data){
-            console.log('收到数据：',data);
-            switch(data.type){
-                case 'lobby':updateLobbyFromHost(data);break;
-                case 'start':startGameFromHost(data);break;
-                case 'action':handleRemoteAction(data);break;
-                case 'turn':nextTurn();break;
-                case 'draw':handleRemoteDraw(data);break;
-            }
-        }
-        
-        console.log('WebRTC函数定义完成');
-        // 进入大厅
-        function enterLobby(){
-            hide('connectionPanel');
-            $('lobby').classList.add('active');
-            if(isHost){
-                show('modeSelector');
-                show('lobbyControls');
-                game.players=[{
-                    id:'host',
-                    name:'房主',
-                    isHost:true,
-                    ready:false,
-                    hp:100,
-                    maxHp:100,
-                    hand:[],
-                    defense:0,
-                    dead:false,
-                    isAI:false
-                }];
-                updateLobby();
-            }
-        }
-        
-        // 选择模式
-        function selectMode(mode){
-            if(!isHost)return;
-            game.mode=mode;
-            $('currentMode').innerText=mode==='pve'?'PVE合作':'PVP对战';
-            sendData({type:'lobby',players:game.players,mode:mode});
-        }
-        
-        // 更新大厅显示
-        function updateLobby(){
-            var grid=$('playersGrid');
-            var html='';
-            for(var i=0;i<game.players.length;i++){
-                var p=game.players[i];
-                html+='<div class="player-card '+(p.ready?'ready':'')+'" style="'+(p.dead?'opacity:0.3':'')+'">';
-                html+='<div style="font-size:28px">'+(p.isHost?'👑':(p.isAI?'🤖':'👤'))+'</div>';
-                html+='<div style="font-weight:bold;font-size:14px">'+p.name+'</div>';
-                html+='<div style="font-size:12px;color:'+(p.ready?'#2ed573':'#aaa')+'">'+(p.ready?'✓已准备':'等待中')+'</div>';
-                html+='</div>';
-            }
-            grid.innerHTML=html;
+            },
+            handleData(data) {
+                if (data.type === 'ping') {
+                    this.send({ type: 'pong', time: data.time });
+                } else if (data.type === 'pong') {
+                    const ping = Date.now() - data.time;
+                    document.getElementById('pingDisplay').textContent = `延迟: ${ping}ms`;
+                    document.getElementById('pingDisplay').className = 'ping-display ' + (ping < 100 ? 'ping-good' : 'ping-bad');
+                    document.getElementById('waitPing').textContent = ping;
+                } else if (data.type === 'gameAction') {
+                    game.handleRemoteAction(data.action);
+                } else if (data.type === 'sync') {
+                    game.syncState(data.state);
+                }
+            },
             
-            if(isHost){
-                var allReady=true;
-                for(var i=0;i<game.players.length;i++){
-                    if(!game.players[i].ready&&!game.players[i].isAI){
-                        allReady=false;
-                        break;
-                    }
+            send(data) {
+                if (this.conn && this.conn.open) {
+                    this.conn.send(data);
                 }
-                if(allReady)show('startBtn');else hide('startBtn');
-                sendData({type:'lobby',players:game.players,mode:game.mode});
-            }
-        }
-        
-        // 客户端更新大厅
-        function updateLobbyFromHost(data){
-            if(!isHost){
-                game.players=data.players;
-                game.mode=data.mode;
-                $('currentMode').innerText=data.mode==='pve'?'PVE合作':'PVP对战';
-                updateLobby();
-            }
-        }
-        
-        // 切换准备状态
-        function toggleReady(){
-            var p=null;
-            for(var i=0;i<game.players.length;i++){
-                if(game.players[i].id==='host'||game.players[i].id===game.myId){
-                    p=game.players[i];
-                    break;
-                }
-            }
-            if(p){
-                p.ready=!p.ready;
-                updateLobby();
-                sendData({type:'lobby',players:game.players,mode:game.mode});
-            }
-        }
-        
-        // 添加AI
-        function addAI(){
-            if(!isHost)return;
-            var n=0;
-            for(var i=0;i<game.players.length;i++){
-                if(game.players[i].isAI)n++;
-            }
-            game.players.push({
-                id:'ai_'+Date.now(),
-                name:'AI '+(n+1),
-                isHost:false,
-                ready:true,
-                isAI:true,
-                hp:100,
-                maxHp:100,
-                hand:[],
-                defense:0,
-                dead:false
-            });
-            updateLobby();
-        }
-        
-        // 开始游戏
-        function startGame(){
-            if(!isHost)return;
-            game.battleActive=true;
-            game.round=1;
-            game.currentPlayer=0;
-            var diff=game.players.length;
-            if(game.mode==='pve'){
-                game.enemy={
-                    hp:400*diff,
-                    maxHp:400*diff,
-                    damage:15*diff,
-                    difficulty:diff
-                };
-            }else{
-                game.enemy=null;
-            }
-            for(var i=0;i<game.players.length;i++){
-                var p=game.players[i];
-                p.hp=100;
-                p.maxHp=100;
-                p.hand=[];
-                p.defense=0;
-                p.dead=false;
-            }
-            sendData({type:'start',game:game});
-            initBattle();
-        }
-        
-        // 客户端开始游戏
-        function startGameFromHost(data){
-            game.players=data.game.players;
-            game.enemy=data.game.enemy;
-            game.mode=data.game.mode;
-            game.battleActive=true;
-            initBattle();
-        }
-        
-        console.log('大厅函数定义完成');
-        // 初始化战斗
-        function initBattle(){
-            $('lobby').classList.remove('active');
-            $('gameArea').classList.add('active');
-            if(game.enemy){
-                show('enemySection');
-                $('difficulty').innerText=game.enemy.difficulty;
-                updateEnemy();
-            }else{
-                hide('enemySection');
-            }
-            if(isHost){
-                for(var i=0;i<game.players.length;i++){
-                    if(!game.players[i].isAI){
-                        drawCards(game.players[i],3);
-                    }
-                }
-            }
-            updateBattle();
-            startTurn();
-        }
-        
-        // 更新敌人显示
-        function updateEnemy(){
-            if(!game.enemy)return;
-            var pct=Math.max(0,game.enemy.hp/game.enemy.maxHp*100);
-            var bar=$('enemyHpBar');
-            bar.style.width=pct+'%';
-            bar.innerText=Math.max(0,game.enemy.hp)+'/'+game.enemy.maxHp;
-        }
-        
-        // 更新战斗界面
-        function updateBattle(){
-            var grid=$('battleGrid');
-            var html='';
-            for(var i=0;i<game.players.length;i++){
-                var p=game.players[i];
-                html+='<div class="player-card '+(i===game.currentPlayer?'current-turn':'')+'" style="'+(p.dead?'opacity:0.3':'')+'">';
-                html+='<div style="font-size:28px">'+(p.isAI?'🤖':'👤')+'</div>';
-                html+='<div style="font-size:13px;font-weight:bold">'+p.name+(i===game.currentPlayer?'▶':'')+'</div>';
-                html+='<div class="hp-bar"><div class="hp-fill" style="width:'+(p.hp/p.maxHp*100)+'%">'+p.hp+'</div></div>';
-                html+='<div style="font-size:11px">防:'+p.defense+' 牌:'+(p.hand?p.hand.length:0)+'</div>';
-                html+='</div>';
-            }
-            grid.innerHTML=html;
-            $('roundText').innerText=game.round;
-        }
-        
-        // 抽卡
-        function drawCards(player,count){
-            for(var i=0;i<count;i++){
-                if(player.hand.length>=5)break;
-                var card=CARD_DB[Math.floor(Math.random()*CARD_DB.length)];
-                player.hand.push({
-                    name:card.name,
-                    type:card.type,
-                    value:card.value,
-                    cost:card.cost,
-                    desc:card.desc,
-                    uid:Date.now()+i
+            },
+            
+            startPingCheck() {
+                this.pingInterval = setInterval(() => {
+                    this.send({ type: 'ping', time: Date.now() });
+                }, 2000);
+            },
+            
+            updateStatus(text, type) {
+                const status = document.getElementById('connectionStatus');
+                status.textContent = text;
+                status.className = 'connection-status status-' + type;
+                status.style.display = 'block';
+            },
+            
+            copyCode() {
+                navigator.clipboard.writeText(this.roomCode).then(() => {
+                    alert('房间代码已复制: ' + this.roomCode);
                 });
             }
-        }
-        
-        // 开始回合
-        var hasDrawn=false;
-        function startTurn(){
-            var p=game.players[game.currentPlayer];
-            if(!p||p.dead){
-                nextTurn();
-                return;
-            }
-            hasDrawn=false;
-            $('apText').innerText='3';
-            if(p.isAI){
-                setTimeout(aiTurn,1000);
-            }else{
-                updateHand();
-            }
-            log(p.name+'的回合开始');
-        }
-        
-        // 更新手牌显示
-        function updateHand(){
-            var p=game.players[game.currentPlayer];
-            if(!p)return;
-            var hand=$('cardHand');
-            var html='';
-            for(var i=0;i<p.hand.length;i++){
-                var c=p.hand[i];
-                html+='<div class="card" onclick="playCard('+i+')">';
-                html+='<div style="font-weight:bold;margin-bottom:5px">'+c.name+'</div>';
-                html+='<div style="font-size:10px">'+c.desc+'</div>';
-                html+='<div style="margin-top:5px">💎'+c.cost+'</div>';
-                html+='</div>';
-            }
-            hand.innerHTML=html;
-        }
-        
-        // NFC扫描
-        function scanNFC(){
-            var p=game.players[game.currentPlayer];
-            if(!p||p.dead||p.isAI){
-                return;
-            }
-            if(hasDrawn){
-                log('本回合已抽卡！');
-                return;
-            }
-            if(p.hand.length>=5){
-                log('手牌已满！');
-                return;
-            }
-            drawCards(p,1);
-            hasDrawn=true;
-            updateHand();
-            updateBattle();
-            log('NFC扫描：获得卡牌');
-            sendData({type:'draw',player:game.currentPlayer,hand:p.hand});
-        }
-        
-        // 出牌
-        function playCard(idx){
-            var p=game.players[game.currentPlayer];
-            var c=p.hand[idx];
-            if(!c)return;
+        };
+
+        const game = {
+            mode: 'local',
+            isMyTurn: false,
+            isHost: false,
+            actionPoints: 3,
+            maxActionPoints: 3,
+            combo: { count: 0, lastType: null, multiplier: 1 },
+            collection: new Set(['NFC-001', 'NFC-002', 'NFC-003']),
+            self: { hp: 100, maxHp: 100, hand: [], name: '勇者' },
+            opponent: { hp: 100, maxHp: 100, name: '对手' },
+            localPlayer: { hp: 100, maxHp: 100, hand: [], shield: 0 },
+            localEnemy: { hp: 150, maxHp: 150, name: '暗影魔王' },
             
-            var ap=parseInt($('apText').innerText);
-            if(ap<c.cost){
-                log('行动点不足！');
-                return;
-            }
+            showScreen(id) {
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                document.getElementById(id).classList.add('active');
+            },
             
-            if(c.type==='attack'&&game.enemy){
-                game.enemy.hp-=c.value;
-                log(p.name+'造成'+c.value+'伤害','damage');
-            }else if(c.type==='heal'){
-                p.hp=Math.min(p.maxHp,p.hp+c.value);
-                log(p.name+'恢复'+c.value+'生命','heal');
-            }else if(c.type==='defense'){
-                p.defense+=c.value;
-                log(p.name+'获得'+c.value+'防御');
-            }
-            
-            p.hand.splice(idx,1);
-            $('apText').innerText=ap-c.cost;
-            updateHand();
-            updateBattle();
-            updateEnemy();
-            sendData({type:'action',player:game.currentPlayer,card:c});
-            
-            if(game.enemy&&game.enemy.hp<=0){
-                setTimeout(function(){
-                    alert('🎉 胜利！');
-                    returnToLobby();
-                },100);
-            }
-        }
-        
-        // 处理远程动作
-        function handleRemoteAction(data){
-            var p=game.players[data.player];
-            if(data.card.type==='attack'&&game.enemy)game.enemy.hp-=data.card.value;
-            if(data.card.type==='heal')p.hp=Math.min(p.maxHp,p.hp+data.card.value);
-            if(data.card.type==='defense')p.defense+=data.card.value;
-            updateBattle();
-            updateEnemy();
-        }
-        
-        // 处理远程抽卡
-        function handleRemoteDraw(data){
-            game.players[data.player].hand=data.hand;
-            updateBattle();
-        }
-        
-        console.log('战斗函数定义完成');
-        // 结束回合
-        function endTurn(){
-            sendData({type:'turn'});
-            nextTurn();
-        }
-        
-        // 下一回合
-        function nextTurn(){
-            game.currentPlayer=(game.currentPlayer+1)%game.players.length;
-            if(game.currentPlayer===0&&game.enemy&&isHost){
-                setTimeout(bossTurn,500);
-            }else{
-                startTurn();
-            }
-        }
-        
-        // Boss回合
-        function bossTurn(){
-            if(!game.enemy||game.enemy.hp<=0)return;
-            var alive=[];
-            for(var i=0;i<game.players.length;i++){
-                if(!game.players[i].dead)alive.push(game.players[i]);
-            }
-            if(alive.length>0){
-                var t=alive[Math.floor(Math.random()*alive.length)];
-                var dmg=game.enemy.damage;
-                if(t.defense>0){
-                    var b=Math.min(t.defense,dmg);
-                    t.defense-=b;
-                    dmg-=b;
-                    log('Boss攻击被格挡'+b);
+            startPvpGame(host) {
+                this.isHost = host;
+                this.mode = 'pvp';
+                this.isMyTurn = host;
+                this.self.hp = 100;
+                this.opponent.hp = 100;
+                this.actionPoints = 3;
+                this.combo = { count: 0, lastType: null, multiplier: 1 };
+                this.self.hand = this.drawInitialCards();
+                this.updatePvpUI();
+                this.showScreen('pvpScreen');
+                this.log('pvp', `⚔️ PVP 开始！${host ? '你是主机，先手' : '你是客人，等待对手'}`, 'system');
+                if (!this.isMyTurn) {
+                    document.getElementById('waitingOverlay').classList.add('active');
                 }
-                t.hp-=dmg;
-                log('Boss对'+t.name+'造成'+dmg+'伤害','damage');
-                if(t.hp<=0){
-                    t.hp=0;
-                    t.dead=true;
-                    log(t.name+'倒下了！','damage');
+            },
+            
+            startLocalBattle() {
+                this.mode = 'local';
+                this.localPlayer.hp = 100;
+                this.localPlayer.shield = 0;
+                this.localEnemy.hp = 150;
+                this.actionPoints = 3;
+                this.combo = { count: 0, lastType: null, multiplier: 1 };
+                this.localPlayer.hand = this.drawInitialCards();
+                this.updateLocalUI();
+                this.showScreen('battleScreen');
+                this.log('local', '⚔️ 练习模式开始！', 'system');
+            },
+            
+            drawInitialCards() {
+                const deck = Array.from(this.collection);
+                const hand = [];
+                for (let i = 0; i < 4; i++) {
+                    const cardId = deck[Math.floor(Math.random() * deck.length)];
+                    hand.push({ ...CARD_DB[cardId], uid: Date.now() + i, id: cardId });
                 }
-            }
-            updateBattle();
-            var allDead=true;
-            for(var i=0;i<game.players.length;i++){
-                if(!game.players[i].dead){
-                    allDead=false;
-                    break;
-                }
-            }
-            if(allDead){
-                setTimeout(function(){
-                    alert('💀 全灭...');
-                    returnToLobby();
-                },100);
-                return;
-            }
-            game.round++;
-            startTurn();
-        }
-        
-        // AI回合
-        function aiTurn(){
-            var p=game.players[game.currentPlayer];
-            if(!p||!p.isAI)return;
-            if(p.hand.length>0){
-                playCard(0);
-                setTimeout(aiTurn,800);
-            }else{
-                endTurn();
-            }
-        }
-        
-        // 返回大厅
-        function returnToLobby(){
-            game.battleActive=false;
-            $('gameArea').classList.remove('active');
-            $('lobby').classList.add('active');
-            for(var i=0;i<game.players.length;i++){
-                var p=game.players[i];
-                p.ready=false;
-                p.hp=100;
-                p.hand=[];
-                p.dead=false;
-            }
-            updateLobby();
-        }
-        
-        console.log('所有JS加载完成');
-    </script>
-</body>
-</html>
+                return hand;
+            },
