@@ -6,768 +6,388 @@
     <title>NFC 次元对决 - 联机版</title>
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        :root {
-            --neon-blue: #00f3ff;
-            --neon-purple: #bc13fe;
-            --neon-orange: #ff9500;
-            --dark-bg: #0a0a0f;
-            --card-bg: rgba(255, 255, 255, 0.05);
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--dark-bg);
-            color: white;
-            overflow-x: hidden;
-            touch-action: manipulation;
-        }
-        
-        .screen {
-            display: none;
-            min-height: 100vh;
-            padding: 20px;
-            animation: fadeIn 0.5s;
-        }
-        
-        .screen.active { display: block; }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .game-title {
-            text-align: center;
-            font-size: 2.2em;
-            font-weight: bold;
-            margin: 20px 0;
-            background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        
-        .menu-grid {
-            display: grid;
-            gap: 15px;
-            max-width: 350px;
-            margin: 30px auto;
-        }
-        
-        .btn {
-            display: block;
-            width: 100%;
-            padding: 18px;
-            border: none;
-            border-radius: 12px;
-            font-size: 1.1em;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, var(--neon-blue), #0080ff);
-            color: white;
-            box-shadow: 0 4px 15px rgba(0, 243, 255, 0.4);
-        }
-        
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        .btn-warning {
-            background: linear-gradient(135deg, var(--neon-orange), #ff6348);
-            color: white;
-        }
-        
-        .btn:active { transform: scale(0.95); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        
-        .lobby-container { max-width: 400px; margin: 0 auto; }
-        
-        .room-code-display {
-            background: rgba(0, 243, 255, 0.1);
-            border: 2px dashed var(--neon-blue);
-            border-radius: 16px;
-            padding: 30px;
-            text-align: center;
-            margin: 20px 0;
-        }
-        .room-code {
-            font-size: 3em;
-            font-weight: bold;
-            color: var(--neon-blue);
-            letter-spacing: 10px;
-            margin: 10px 0;
-            font-family: 'Courier New', monospace;
-        }
-        
-        .code-input {
-            width: 100%;
-            padding: 15px;
-            font-size: 1.5em;
-            text-align: center;
-            letter-spacing: 5px;
-            background: rgba(255,255,255,0.1);
-            border: 2px solid rgba(255,255,255,0.2);
-            border-radius: 12px;
-            color: white;
-            margin: 10px 0;
-        }
-        
-        .connection-status {
-            text-align: center;
-            padding: 10px;
-            border-radius: 20px;
-            margin: 15px 0;
-            font-weight: bold;
-        }
-        
-        .status-connecting { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
-        .status-connected { background: rgba(46, 213, 115, 0.2); color: #2ed573; }
-        .status-error { background: rgba(255, 71, 87, 0.2); color: #ff4757; }
-        
-        .pvp-arena {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .fighter {
-            background: var(--card-bg);
-            border-radius: 16px;
-            padding: 15px;
-            text-align: center;
-            border: 2px solid transparent;
-            transition: all 0.3s;
-            position: relative;
-        }
-        
-        .fighter.active {
-            border-color: var(--neon-blue);
-            box-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
-            animation: glow 2s infinite;
-        }
-        
-        @keyframes glow {
-            0%, 100% { box-shadow: 0 0 20px rgba(0, 243, 255, 0.3); }
-            50% { box-shadow: 0 0 30px rgba(0, 243, 255, 0.6); }
-        }
-        
-        .fighter-tag {
-            position: absolute;
-            top: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--neon-purple);
-            padding: 2px 10px;
-            border-radius: 10px;
-            font-size: 0.7em;
-            font-weight: bold;
-        }
-        
-        .fighter-avatar {
-            width: 70px;
-            height: 70px;
-            margin: 10px auto;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2em;
-        }
-        
-        .hp-bar {
-            width: 100%;
-            height: 10px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 5px;
-            overflow: hidden;
-            margin: 8px 0;
-        }
-        
-        .hp-fill {
-            height: 100%;
-            transition: width 0.5s ease;
-        }
-        
-        .hp-fill.player { background: linear-gradient(90deg, #00d26a, #00f3ff); }
-        .hp-fill.enemy { background: linear-gradient(90deg, #ff4757, #ff6348); }
-        .hp-text { font-size: 0.85em; color: #aaa; }
-        .hand-area {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
-            padding: 20px;
-            padding-bottom: 30px;
-        }
-        
-        .action-points {
-            text-align: center;
-            margin-bottom: 10px;
-            font-size: 1em;
-            color: var(--neon-orange);
-        }
-        
-        .turn-timer {
-            text-align: center;
-            color: #ff4757;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        
-        .cards-container {
-            display: flex;
-            gap: 10px;
-            overflow-x: auto;
-            padding: 10px;
-            scrollbar-width: none;
-        }
-        
-        .cards-container::-webkit-scrollbar { display: none; }
-        
-        .card {
-            min-width: 90px;
-            height: 130px;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 8px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: space-between;
-            cursor: pointer;
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .card:active { transform: scale(0.95); }
-        .card.selected {
-            border-color: var(--neon-blue);
-            box-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
-            transform: translateY(-10px);
-        }
-        .card.disabled {
-            opacity: 0.4;
-            pointer-events: none;
-            filter: grayscale(100%);
-        }
-        .card-rarity-common { border-color: #888; }
-        .card-rarity-rare { border-color: #0080ff; }
-        .card-rarity-epic { border-color: #bc13fe; }
-        .card-rarity-legendary { border-color: #ff9500; animation: legendary-glow 2s infinite; }
-        
-        @keyframes legendary-glow {
-            0%, 100% { box-shadow: 0 0 10px rgba(255, 149, 0, 0.5); }
-            50% { box-shadow: 0 0 25px rgba(255, 149, 0, 0.8); }
-        }
-        
-        .card-icon { font-size: 1.8em; }
-        .card-name { font-size: 0.75em; text-align: center; font-weight: bold; }
-        .card-cost { 
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: var(--neon-orange);
-            color: black;
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 0.8em;
-        }
-        
-        .battle-log {
-            height: 120px;
-            overflow-y: auto;
-            background: rgba(0,0,0,0.3);
-            border-radius: 12px;
-            padding: 12px;
-            margin-bottom: 260px;
-            font-size: 0.85em;
-            line-height: 1.5;
-        }
-        
-        .log-entry {
-            margin: 3px 0;
-            padding: 4px;
-            border-left: 2px solid var(--neon-blue);
-            padding-left: 8px;
-            animation: slideIn 0.3s;
-        }
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateX(-10px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-        
-        .damage { color: #ff4757; font-weight: bold; }
-        .heal { color: #2ed573; font-weight: bold; }
-        .combo { color: #ffa502; font-weight: bold; }
-        .system { color: #74b9ff; }
-        
-        .combo-indicator {
-            position: fixed;
-            top: 40%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 2.5em;
-            font-weight: bold;
-            color: var(--neon-orange);
-            text-shadow: 0 0 20px rgba(255, 165, 2, 0.8);
-            pointer-events: none;
-            opacity: 0;
-            z-index: 1000;
-            text-align: center;
-        }
-        
-        .combo-indicator.show { animation: comboPop 1.5s forwards; }
-        
-        @keyframes comboPop {
-            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
-            30% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
-            100% { opacity: 0; transform: translate(-50%, -50%) scale(1) translateY(-100px); }
-        }
-        
-        .end-turn-btn {
-            position: fixed;
-            bottom: 230px;
-            right: 15px;
-            background: var(--neon-purple);
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 25px;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(188, 19, 254, 0.4);
-            z-index: 100;
-            font-size: 0.9em;
-        }
-        .end-turn-btn:disabled { background: #555; box-shadow: none; }
-        
-        .waiting-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.8);
-            z-index: 500;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-        }
-        .waiting-overlay.active { display: flex; }
-        
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid rgba(255,255,255,0.3);
-            border-top-color: var(--neon-blue);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        
-        .ping-display {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: rgba(0,0,0,0.5);
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 0.75em;
-            color: #aaa;
-        }
-        .ping-good { color: #2ed573; }
-        .ping-bad { color: #ff4757; }
-        
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.9);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        .modal.active { display: flex; }
-        
-        .modal-content {
-            background: linear-gradient(135deg, #1a1a2e, #16213e);
-            padding: 25px;
-            border-radius: 20px;
-            text-align: center;
-            max-width: 350px;
-            width: 100%;
-            border: 2px solid var(--neon-blue);
-        }
-        .modal-title {
-            font-size: 1.5em;
-            margin-bottom: 10px;
-            color: var(--neon-blue);
-        }
-        .modal-text { margin-bottom: 20px; line-height: 1.5; }
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--neon-blue:#00f3ff;--neon-purple:#bc13fe;--neon-orange:#ff9500;--dark-bg:#0a0a0f;--card-bg:rgba(255,255,255,0.05)}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--dark-bg);color:white;overflow-x:hidden;touch-action:manipulation}
+        .screen{display:none;min-height:100vh;padding:20px;animation:fadeIn 0.5s}
+        .screen.active{display:block}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        .game-title{text-align:center;font-size:2.2em;font-weight:bold;margin:20px 0;background:linear-gradient(45deg,var(--neon-blue),var(--neon-purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .menu-grid{display:grid;gap:15px;max-width:350px;margin:30px auto}
+        .btn{display:block;width:100%;padding:18px;border:none;border-radius:12px;font-size:1.1em;font-weight:bold;cursor:pointer;transition:all 0.3s}
+        .btn-primary{background:linear-gradient(135deg,var(--neon-blue),#0080ff);color:white;box-shadow:0 4px 15px rgba(0,243,255,0.4)}
+        .btn-secondary{background:rgba(255,255,255,0.1);color:white;border:1px solid rgba(255,255,255,0.2)}
+        .btn-warning{background:linear-gradient(135deg,var(--neon-orange),#ff6348);color:white}
+        .btn:active{transform:scale(0.95)}
+        .btn:disabled{opacity:0.5;cursor:not-allowed}
+        .lobby-container{max-width:400px;margin:0 auto}
+        .room-code-display{background:rgba(0,243,255,0.1);border:2px dashed var(--neon-blue);border-radius:16px;padding:30px;text-align:center;margin:20px 0}
+        .room-code{font-size:3em;font-weight:bold;color:var(--neon-blue);letter-spacing:10px;font-family:'Courier New',monospace}
+        .code-input{width:100%;padding:15px;font-size:1.5em;text-align:center;letter-spacing:5px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2);border-radius:12px;color:white;margin:10px 0}
+        .connection-status{text-align:center;padding:10px;border-radius:20px;margin:15px 0;font-weight:bold}
+        .status-connecting{background:rgba(255,193,7,0.2);color:#ffc107}
+        .status-connected{background:rgba(46,213,115,0.2);color:#2ed573}
+        .status-error{background:rgba(255,71,87,0.2);color:#ff4757}
+        .pvp-arena{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:20px}
+        .fighter{background:var(--card-bg);border-radius:16px;padding:15px;text-align:center;border:2px solid transparent;transition:all 0.3s;position:relative}
+        .fighter.active{border-color:var(--neon-blue);box-shadow:0 0 20px rgba(0,243,255,0.3)}
+        .fighter-tag{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--neon-purple);padding:2px 10px;border-radius:10px;font-size:0.7em;font-weight:bold}
+        .fighter-avatar{width:70px;height:70px;margin:10px auto;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;font-size:2em}
+        .hp-bar{width:100%;height:10px;background:rgba(255,255,255,0.1);border-radius:5px;overflow:hidden;margin:8px 0}
+        .hp-fill{height:100%;transition:width 0.5s ease}
+        .hp-fill.player{background:linear-gradient(90deg,#00d26a,#00f3ff)}
+        .hp-fill.enemy{background:linear-gradient(90deg,#ff4757,#ff6348)}
+        .hp-text{font-size:0.85em;color:#aaa}
+        .hand-area{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,0.95),transparent);padding:20px;padding-bottom:30px}
+        .action-points{text-align:center;margin-bottom:10px;font-size:1em;color:var(--neon-orange)}
+        .cards-container{display:flex;gap:10px;overflow-x:auto;padding:10px;scrollbar-width:none}
+        .cards-container::-webkit-scrollbar{display:none}
+        .card{min-width:90px;height:130px;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid rgba(255,255,255,0.1);border-radius:12px;padding:8px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;cursor:pointer;transition:all 0.3s;position:relative;overflow:hidden}
+        .card:active{transform:scale(0.95)}
+        .card.selected{border-color:var(--neon-blue);box-shadow:0 0 20px rgba(0,243,255,0.5);transform:translateY(-10px)}
+        .card.disabled{opacity:0.4;pointer-events:none;filter:grayscale(100%)}
+        .card-rarity-common{border-color:#888}
+        .card-rarity-rare{border-color:#0080ff}
+        .card-rarity-epic{border-color:#bc13fe}
+        .card-rarity-legendary{border-color:#ff9500;animation:legendary-glow 2s infinite}
+        @keyframes legendary-glow{0%,100%{box-shadow:0 0 10px rgba(255,149,0,0.5)}50%{box-shadow:0 0 25px rgba(255,149,0,0.8)}}
+        .card-icon{font-size:1.8em}
+        .card-name{font-size:0.75em;text-align:center;font-weight:bold}
+        .card-cost{position:absolute;top:5px;right:5px;background:var(--neon-orange);color:black;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:0.8em}
+        .battle-log{height:120px;overflow-y:auto;background:rgba(0,0,0,0.3);border-radius:12px;padding:12px;margin-bottom:260px;font-size:0.85em;line-height:1.5}
+        .log-entry{margin:3px 0;padding:4px;border-left:2px solid var(--neon-blue);padding-left:8px;animation:slideIn 0.3s}
+        @keyframes slideIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
+        .damage{color:#ff4757;font-weight:bold}
+        .heal{color:#2ed573;font-weight:bold}
+        .combo{color:#ffa502;font-weight:bold}
+        .system{color:#74b9ff}
+        .combo-indicator{position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);font-size:2.5em;font-weight:bold;color:var(--neon-orange);text-shadow:0 0 20px rgba(255,165,2,0.8);pointer-events:none;opacity:0;z-index:1000;text-align:center}
+        .combo-indicator.show{animation:comboPop 1.5s forwards}
+        @keyframes comboPop{0%{opacity:0;transform:translate(-50%,-50%) scale(0.5)}30%{opacity:1;transform:translate(-50%,-50%) scale(1.2)}100%{opacity:0;transform:translate(-50%,-50%) scale(1) translateY(-100px)}}
+        .end-turn-btn{position:fixed;bottom:230px;right:15px;background:var(--neon-purple);color:white;border:none;padding:12px 20px;border-radius:25px;font-weight:bold;cursor:pointer;box-shadow:0 4px 15px rgba(188,19,254,0.4);z-index:100;font-size:0.9em}
+        .end-turn-btn:disabled{background:#555;box-shadow:none}
+        .waiting-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:500;align-items:center;justify-content:center;flex-direction:column}
+        .waiting-overlay.active{display:flex}
+        .spinner{width:50px;height:50px;border:3px solid rgba(255,255,255,0.3);border-top-color:var(--neon-blue);border-radius:50%;animation:spin 1s linear infinite;margin-bottom:20px}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .ping-display{position:fixed;top:10px;right:10px;background:rgba(0,0,0,0.5);padding:5px 10px;border-radius:15px;font-size:0.75em;color:#aaa}
+        .ping-good{color:#2ed573}
+        .ping-bad{color:#ff4757}
+        .modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:2000;align-items:center;justify-content:center;padding:20px}
+        .modal.active{display:flex}
+        .modal-content{background:linear-gradient(135deg,#1a1a2e,#16213e);padding:25px;border-radius:20px;text-align:center;max-width:350px;width:100%;border:2px solid var(--neon-blue)}
+        .modal-title{font-size:1.5em;margin-bottom:10px;color:var(--neon-blue)}
+        .modal-text{margin-bottom:20px;line-height:1.5}
     </style>
 </head>
 <body>
     <div id="mainMenu" class="screen active">
-        <h1 class="game-title">⚡ NFC 次元对决 ⚡<br><small style="font-size: 0.4em; color: #888;">P2P 联机版</small></h1>
+        <h1 class="game-title">⚡ NFC 次元对决 ⚡<br><small style="font-size:0.4em;color:#888">P2P 联机版</small></h1>
         <div class="menu-grid">
             <button class="btn btn-primary" onclick="game.showScreen('lobby')">🌐 联机对战</button>
             <button class="btn btn-secondary" onclick="game.startLocalBattle()">👤 本地练习</button>
             <button class="btn btn-secondary" onclick="game.startScan()">📱 NFC 扫卡</button>
             <button class="btn btn-secondary" onclick="game.showCollection()">📚 卡册</button>
         </div>
-        <div style="text-align: center; margin-top: 30px; color: #666; font-size: 0.8em;">
+        <div style="text-align:center;margin-top:30px;color:#666;font-size:0.8em">
             <p>💡 联机无需服务器，手机直连</p>
             <p>📍 确保双方在同一 WiFi 下效果最佳</p>
         </div>
     </div>
 
     <div id="lobby" class="screen">
-        <h2 style="text-align: center; margin-bottom: 20px;">🌐 联机大厅</h2>
+        <h2 style="text-align:center;margin-bottom:20px">🌐 联机大厅</h2>
         <div class="lobby-container">
             <div id="hostSection">
                 <button class="btn btn-primary" onclick="net.createRoom()" id="createBtn">🏠 创建房间</button>
-                <div id="roomInfo" style="display: none; margin-top: 20px;">
+                <div id="roomInfo" style="display:none;margin-top:20px">
                     <div class="room-code-display">
-                        <div style="color: #888; margin-bottom: 5px;">房间代码</div>
+                        <div style="color:#888;margin-bottom:5px">房间代码</div>
                         <div class="room-code" id="roomCode">------</div>
-                        <div style="color: var(--neon-blue); margin-top: 10px; font-size: 0.9em;">
-                            等待对手加入...<br><small>将代码发送给朋友</small>
-                        </div>
+                        <div style="color:var(--neon-blue);margin-top:10px;font-size:0.9em">等待对手加入...<br><small>将代码发送给朋友</small></div>
                     </div>
                     <button class="btn btn-secondary" onclick="net.copyCode()">📋 复制代码</button>
                 </div>
             </div>
-            <hr style="border: 1px solid rgba(255,255,255,0.1); margin: 30px 0;">
+            <hr style="border:1px solid rgba(255,255,255,0.1);margin:30px 0">
             <div id="clientSection">
-                <div style="color: #888; margin-bottom: 10px;">加入现有房间</div>
+                <div style="color:#888;margin-bottom:10px">加入现有房间</div>
                 <input type="text" class="code-input" id="joinCode" placeholder="输入6位代码" maxlength="6">
                 <button class="btn btn-warning" onclick="net.joinRoom()" id="joinBtn">🚀 加入对战</button>
             </div>
-            <div id="connectionStatus" class="connection-status" style="display: none;"></div>
-            <button class="btn btn-secondary" onclick="game.showScreen('mainMenu')" style="margin-top: 30px;">返回</button>
+            <div id="connectionStatus" class="connection-status" style="display:none"></div>
+            <button class="btn btn-secondary" onclick="game.showScreen('mainMenu')" style="margin-top:30px">返回</button>
         </div>
     </div>
 
     <div id="pvpScreen" class="screen">
         <div class="ping-display" id="pingDisplay">延迟: --ms</div>
-        <div style="text-align: center; padding: 10px; background: rgba(188, 19, 254, 0.1); border-radius: 20px; margin-bottom: 10px; font-size: 0.9em;">
+        <div style="text-align:center;padding:10px;background:rgba(188,19,254,0.1);border-radius:20px;margin-bottom:10px;font-size:0.9em">
             <span id="pvpTurnText">🎮 你的回合</span>
         </div>
         <div class="pvp-arena">
             <div class="fighter active" id="selfFighter">
                 <div class="fighter-tag">你</div>
-                <div class="fighter-avatar" id="selfAvatar">🧙‍♂️</div>
-                <div id="selfName">勇者</div>
-                <div class="hp-bar">
-                    <div class="hp-fill player" id="selfHp" style="width: 100%"></div>
-                </div>
+                <div class="fighter-avatar">🧙‍♂️</div>
+                <div>勇者</div>
+                <div class="hp-bar"><div class="hp-fill player" id="selfHp" style="width:100%"></div></div>
                 <div class="hp-text"><span id="selfHpText">100</span>/100</div>
             </div>
             <div class="fighter" id="oppoFighter">
                 <div class="fighter-tag">对手</div>
-                <div class="fighter-avatar" id="oppoAvatar">👹</div>
+                <div class="fighter-avatar">👹</div>
                 <div id="oppoName">等待...</div>
-                <div class="hp-bar">
-                    <div class="hp-fill enemy" id="oppoHp" style="width: 100%"></div>
-                </div>
+                <div class="hp-bar"><div class="hp-fill enemy" id="oppoHp" style="width:100%"></div></div>
                 <div class="hp-text"><span id="oppoHpText">100</span>/100</div>
             </div>
         </div>
-        <div class="battle-log" id="pvpLog">
-            <div class="log-entry system">⚔️ PVP 对战开始！击败对手！</div>
-        </div>
+        <div class="battle-log" id="pvpLog"><div class="log-entry system">⚔️ PVP 对战开始！击败对手！</div></div>
         <button class="end-turn-btn" id="endTurnBtn" onclick="game.endPvpTurn()">结束回合 →</button>
         <div class="hand-area">
-            <div class="turn-timer" id="turnTimer"></div>
             <div class="action-points">⚡ 行动点: <span id="pvpActionPoints">3</span>/3</div>
             <div class="cards-container" id="pvpHand"></div>
         </div>
         <div class="waiting-overlay" id="waitingOverlay">
             <div class="spinner"></div>
             <div>等待对手行动...</div>
-            <div style="font-size: 0.8em; color: #888; margin-top: 10px;">网络延迟: <span id="waitPing">--</span>ms</div>
+            <div style="font-size:0.8em;color:#888;margin-top:10px">网络延迟: <span id="waitPing">--</span>ms</div>
         </div>
     </div>
 
     <div id="battleScreen" class="screen">
-        <div style="text-align: center; padding: 10px; background: rgba(0, 243, 255, 0.1); border-radius: 20px; margin-bottom: 10px; font-size: 0.9em; color: var(--neon-blue);">
-            👤 练习模式
-        </div>
+        <div style="text-align:center;padding:10px;background:rgba(0,243,255,0.1);border-radius:20px;margin-bottom:10px;font-size:0.9em;color:var(--neon-blue)">👤 练习模式</div>
         <div class="pvp-arena">
             <div class="fighter active" id="playerFighter">
                 <div class="fighter-avatar">🧙‍♂️</div>
                 <div>勇者</div>
-                <div class="hp-bar">
-                    <div class="hp-fill player" id="playerHp" style="width: 100%"></div>
-                </div>
+                <div class="hp-bar"><div class="hp-fill player" id="playerHp" style="width:100%"></div></div>
                 <div class="hp-text"><span id="playerHpText">100</span>/100</div>
             </div>
             <div class="fighter" id="enemyFighter">
                 <div class="fighter-avatar">👹</div>
                 <div>暗影魔王</div>
-                <div class="hp-bar">
-                    <div class="hp-fill enemy" id="enemyHp" style="width: 100%"></div>
-                </div>
+                <div class="hp-bar"><div class="hp-fill enemy" id="enemyHp" style="width:100%"></div></div>
                 <div class="hp-text"><span id="enemyHpText">150</span>/150</div>
             </div>
         </div>
-        <div class="battle-log" id="battleLog" style="margin-bottom: 250px;">
-            <div class="log-entry">⚔️ 练习模式开始！</div>
-        </div>
+        <div class="battle-log" id="battleLog" style="margin-bottom:250px"><div class="log-entry">⚔️ 练习模式开始！</div></div>
         <button class="end-turn-btn" onclick="game.endLocalTurn()">结束回合 →</button>
         <div class="hand-area">
             <div class="action-points">⚡ 行动点: <span id="localActionPoints">3</span>/3</div>
             <div class="cards-container" id="localHand"></div>
         </div>
     </div>
-
     <div id="collectionScreen" class="screen">
-        <h2 style="text-align: center; margin-bottom: 20px;">📚 我的卡册</h2>
-        <div id="collectionGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 10px;"></div>
-        <button class="btn btn-primary" onclick="game.showScreen('mainMenu')" style="margin-top: 20px;">返回</button>
+        <h2 style="text-align:center;margin-bottom:20px">📚 我的卡册</h2>
+        <div id="collectionGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:10px"></div>
+        <button class="btn btn-primary" onclick="game.showScreen('mainMenu')" style="margin-top:20px">返回</button>
     </div>
 
     <div id="resultModal" class="modal">
         <div class="modal-content">
-            <div id="resultIcon" style="font-size: 3em; margin-bottom: 10px;">🏆</div>
+            <div id="resultIcon" style="font-size:3em;margin-bottom:10px">🏆</div>
             <div class="modal-title" id="resultTitle">胜利！</div>
             <div class="modal-text" id="resultText">你击败了对手！</div>
-            <button class="btn btn-primary" onclick="game.closeModal()" style="margin-top: 15px;">确定</button>
+            <button class="btn btn-primary" onclick="game.closeModal()" style="margin-top:15px">确定</button>
         </div>
     </div>
 
     <div id="comboIndicator" class="combo-indicator">连击 x2!</div>
 
     <script>
-        const CARD_DB = {
-            'NFC-001': { name: '火球术', type: 'attack', rarity: 'common', cost: 1, power: 15, icon: '🔥', desc: '造成15点伤害' },
-            'NFC-002': { name: '冰冻箭', type: 'attack', rarity: 'common', cost: 1, power: 12, icon: '❄️', desc: '造成12点伤害' },
-            'NFC-003': { name: '治愈之光', type: 'heal', rarity: 'common', cost: 1, power: 20, icon: '💚', desc: '恢复20点生命' },
-            'NFC-004': { name: '雷霆斩', type: 'attack', rarity: 'rare', cost: 2, power: 35, icon: '⚡', desc: '造成35点伤害' },
-            'NFC-005': { name: '圣盾术', type: 'defense', rarity: 'rare', cost: 1, power: 20, icon: '🛡️', desc: '获得20点护盾' },
-            'NFC-006': { name: '暗影突袭', type: 'attack', rarity: 'epic', cost: 2, power: 45, icon: '🗡️', desc: '造成45点伤害' },
-            'NFC-007': { name: '生命之泉', type: 'heal', rarity: 'epic', cost: 2, power: 40, icon: '💙', desc: '恢复40点生命' },
-            'NFC-008': { name: '毁灭风暴', type: 'attack', rarity: 'legendary', cost: 3, power: 80, icon: '🌪️', desc: '造成80点毁灭伤害' }
+        const CARD_DB={
+            'NFC-001':{name:'火球术',type:'attack',rarity:'common',cost:1,power:15,icon:'🔥',desc:'造成15点伤害'},
+            'NFC-002':{name:'冰冻箭',type:'attack',rarity:'common',cost:1,power:12,icon:'❄️',desc:'造成12点伤害'},
+            'NFC-003':{name:'治愈之光',type:'heal',rarity:'common',cost:1,power:20,icon:'💚',desc:'恢复20点生命'},
+            'NFC-004':{name:'雷霆斩',type:'attack',rarity:'rare',cost:2,power:35,icon:'⚡',desc:'造成35点伤害'},
+            'NFC-005':{name:'圣盾术',type:'defense',rarity:'rare',cost:1,power:20,icon:'🛡️',desc:'获得20点护盾'},
+            'NFC-006':{name:'暗影突袭',type:'attack',rarity:'epic',cost:2,power:45,icon:'🗡️',desc:'造成45点伤害'},
+            'NFC-007':{name:'生命之泉',type:'heal',rarity:'epic',cost:2,power:40,icon:'💙',desc:'恢复40点生命'},
+            'NFC-008':{name:'毁灭风暴',type:'attack',rarity:'legendary',cost:3,power:80,icon:'🌪️',desc:'造成80点毁灭伤害'}
         };
 
-        const net = {
-            peer: null,
-            conn: null,
-            isHost: false,
-            roomCode: '',
-            pingInterval: null,
-            lastPingTime: 0,
-            
-            generateCode() {
-                return Math.random().toString(36).substring(2, 8).toUpperCase();
+        const net={
+            peer:null,conn:null,isHost:false,roomCode:'',pingInterval:null,
+            generateCode(){return Math.random().toString(36).substring(2,8).toUpperCase()},
+            createRoom(){
+                this.isHost=true;this.roomCode=this.generateCode();
+                document.getElementById('roomCode').textContent=this.roomCode;
+                document.getElementById('roomInfo').style.display='block';
+                document.getElementById('createBtn').disabled=true;
+                this.updateStatus('正在创建房间...','connecting');
+                this.peer=new Peer(this.roomCode,{host:'peerjs-server.herokuapp.com',secure:true,port:443});
+                this.peer.on('open',()=>{this.updateStatus('房间已创建，等待对手...','connecting')});
+                this.peer.on('connection',(conn)=>{this.conn=conn;this.setupConnection();this.updateStatus('对手已连接！','connected');setTimeout(()=>game.startPvpGame(true),1000)});
+                this.peer.on('error',(err)=>{this.updateStatus('错误: '+err.message,'error')});
             },
-            
-            createRoom() {
-                this.isHost = true;
-                this.roomCode = this.generateCode();
-                document.getElementById('roomCode').textContent = this.roomCode;
-                document.getElementById('roomInfo').style.display = 'block';
-                document.getElementById('createBtn').disabled = true;
-                this.updateStatus('正在创建房间...', 'connecting');
-                
-                this.peer = new Peer(this.roomCode, {
-                    host: 'peerjs-server.herokuapp.com',
-                    secure: true,
-                    port: 443,
-                    debug: 2
-                });
-                
-                this.peer.on('open', (id) => {
-                    this.updateStatus('房间已创建，等待对手...', 'connecting');
-                    console.log('Host ID:', id);
-                });
-                
-                this.peer.on('connection', (conn) => {
-                    this.conn = conn;
-                    this.setupConnection();
-                    this.updateStatus('对手已连接！', 'connected');
-                    setTimeout(() => game.startPvpGame(true), 1000);
-                });
-                
-                this.peer.on('error', (err) => {
-                    this.updateStatus('错误: ' + err.message, 'error');
-                });
+            joinRoom(){
+                const code=document.getElementById('joinCode').value.toUpperCase();
+                if(code.length!==6){alert('请输入6位房间代码');return}
+                this.isHost=false;this.roomCode=code;document.getElementById('joinBtn').disabled=true;
+                this.updateStatus('正在连接...','connecting');
+                this.peer=new Peer(null,{host:'peerjs-server.herokuapp.com',secure:true,port:443});
+                this.peer.on('open',()=>{this.conn=this.peer.connect(code,{reliable:true,serialization:'json'});this.setupConnection()});
+                this.peer.on('error',(err)=>{this.updateStatus('连接失败: '+err.message,'error');document.getElementById('joinBtn').disabled=false});
             },
-            
-            joinRoom() {
-                const code = document.getElementById('joinCode').value.toUpperCase();
-                if (code.length !== 6) {
-                    alert('请输入6位房间代码');
-                    return;
-                }
-                this.isHost = false;
-                this.roomCode = code;
-                document.getElementById('joinBtn').disabled = true;
-                this.updateStatus('正在连接...', 'connecting');
-                
-                this.peer = new Peer(null, {
-                    host: 'peerjs-server.herokuapp.com',
-                    secure: true,
-                    port: 443
-                });
-                
-                this.peer.on('open', () => {
-                    this.conn = this.peer.connect(code, {
-                        reliable: true,
-                        serialization: 'json'
-                    });
-                    this.setupConnection();
-                });
-                
-                this.peer.on('error', (err) => {
-                    this.updateStatus('连接失败: ' + err.message, 'error');
-                    document.getElementById('joinBtn').disabled = false;
-                });
+            setupConnection(){
+                this.conn.on('open',()=>{this.updateStatus('已连接！','connected');if(!this.isHost)setTimeout(()=>game.startPvpGame(false),500);this.startPingCheck()});
+                this.conn.on('data',(data)=>{this.handleData(data)});
+                this.conn.on('close',()=>{this.updateStatus('连接已断开','error');alert('对手断开连接');location.reload()});
             },
-            
-            setupConnection() {
-                this.conn.on('open', () => {
-                    this.updateStatus('已连接！', 'connected');
-                    if (!this.isHost) {
-                        setTimeout(() => game.startPvpGame(false), 500);
-                    }
-                    this.startPingCheck();
-                });
-                
-                this.conn.on('data', (data) => {
-                    this.handleData(data);
-                });
-                
-                this.conn.on('close', () => {
-                    this.updateStatus('连接已断开', 'error');
-                    alert('对手断开连接');
-                    location.reload();
-                });
-                
-                this.conn.on('error', (err) => {
-                    console.error('连接错误:', err);
-                });
+            handleData(data){
+                if(data.type==='ping')this.send({type:'pong',time:data.time});
+                else if(data.type==='pong'){
+                    const ping=Date.now()-data.time;
+                    document.getElementById('pingDisplay').textContent='延迟: '+ping+'ms';
+                    document.getElementById('pingDisplay').className='ping-display '+(ping<100?'ping-good':'ping-bad');
+                    document.getElementById('waitPing').textContent=ping;
+                }else if(data.type==='gameAction')game.handleRemoteAction(data.action);
             },
-            handleData(data) {
-                if (data.type === 'ping') {
-                    this.send({ type: 'pong', time: data.time });
-                } else if (data.type === 'pong') {
-                    const ping = Date.now() - data.time;
-                    document.getElementById('pingDisplay').textContent = `延迟: ${ping}ms`;
-                    document.getElementById('pingDisplay').className = 'ping-display ' + (ping < 100 ? 'ping-good' : 'ping-bad');
-                    document.getElementById('waitPing').textContent = ping;
-                } else if (data.type === 'gameAction') {
-                    game.handleRemoteAction(data.action);
-                } else if (data.type === 'sync') {
-                    game.syncState(data.state);
-                }
+            send(data){if(this.conn&&this.conn.open)this.conn.send(data)},
+            startPingCheck(){this.pingInterval=setInterval(()=>this.send({type:'ping',time:Date.now()}),2000)},
+            updateStatus(text,type){
+                const status=document.getElementById('connectionStatus');
+                status.textContent=text;status.className='connection-status status-'+type;status.style.display='block';
             },
-            
-            send(data) {
-                if (this.conn && this.conn.open) {
-                    this.conn.send(data);
-                }
-            },
-            
-            startPingCheck() {
-                this.pingInterval = setInterval(() => {
-                    this.send({ type: 'ping', time: Date.now() });
-                }, 2000);
-            },
-            
-            updateStatus(text, type) {
-                const status = document.getElementById('connectionStatus');
-                status.textContent = text;
-                status.className = 'connection-status status-' + type;
-                status.style.display = 'block';
-            },
-            
-            copyCode() {
-                navigator.clipboard.writeText(this.roomCode).then(() => {
-                    alert('房间代码已复制: ' + this.roomCode);
-                });
-            }
+            copyCode(){navigator.clipboard.writeText(this.roomCode).then(()=>alert('房间代码已复制: '+this.roomCode))}
         };
 
-        const game = {
-            mode: 'local',
-            isMyTurn: false,
-            isHost: false,
-            actionPoints: 3,
-            maxActionPoints: 3,
-            combo: { count: 0, lastType: null, multiplier: 1 },
-            collection: new Set(['NFC-001', 'NFC-002', 'NFC-003']),
-            self: { hp: 100, maxHp: 100, hand: [], name: '勇者' },
-            opponent: { hp: 100, maxHp: 100, name: '对手' },
-            localPlayer: { hp: 100, maxHp: 100, hand: [], shield: 0 },
-            localEnemy: { hp: 150, maxHp: 150, name: '暗影魔王' },
+        const game={
+            mode:'local',isMyTurn:false,isHost:false,actionPoints:3,maxActionPoints:3,
+            combo:{count:0,lastType:null,multiplier:1},collection:new Set(['NFC-001','NFC-002','NFC-003']),
+            self:{hp:100,maxHp:100,hand:[],name:'勇者'},opponent:{hp:100,maxHp:100,name:'对手'},
+            localPlayer:{hp:100,maxHp:100,hand:[],shield:0},localEnemy:{hp:150,maxHp:150,name:'暗影魔王'},
             
-            showScreen(id) {
-                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            showScreen(id){
+                document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
                 document.getElementById(id).classList.add('active');
             },
-            
-            startPvpGame(host) {
-                this.isHost = host;
-                this.mode = 'pvp';
-                this.isMyTurn = host;
-                this.self.hp = 100;
-                this.opponent.hp = 100;
-                this.actionPoints = 3;
-                this.combo = { count: 0, lastType: null, multiplier: 1 };
-                this.self.hand = this.drawInitialCards();
-                this.updatePvpUI();
-                this.showScreen('pvpScreen');
-                this.log('pvp', `⚔️ PVP 开始！${host ? '你是主机，先手' : '你是客人，等待对手'}`, 'system');
-                if (!this.isMyTurn) {
-                    document.getElementById('waitingOverlay').classList.add('active');
-                }
+            startPvpGame(host){
+                this.isHost=host;this.mode='pvp';this.isMyTurn=host;
+                this.self.hp=100;this.opponent.hp=100;this.actionPoints=3;
+                this.combo={count:0,lastType:null,multiplier:1};
+                this.self.hand=this.drawInitialCards();
+                this.updatePvpUI();this.showScreen('pvpScreen');
+                this.log('pvp','⚔️ PVP 开始！'+(host?'你是主机，先手':'你是客人，等待对手'),'system');
+                if(!this.isMyTurn)document.getElementById('waitingOverlay').classList.add('active');
             },
-            
-            startLocalBattle() {
-                this.mode = 'local';
-                this.localPlayer.hp = 100;
-                this.localPlayer.shield = 0;
-                this.localEnemy.hp = 150;
-                this.actionPoints = 3;
-                this.combo = { count: 0, lastType: null, multiplier: 1 };
-                this.localPlayer.hand = this.drawInitialCards();
-                this.updateLocalUI();
-                this.showScreen('battleScreen');
-                this.log('local', '⚔️ 练习模式开始！', 'system');
+            startLocalBattle(){
+                this.mode='local';this.localPlayer.hp=100;this.localPlayer.shield=0;this.localEnemy.hp=150;
+                this.actionPoints=3;this.combo={count:0,lastType:null,multiplier:1};
+                this.localPlayer.hand=this.drawInitialCards();
+                this.updateLocalUI();this.showScreen('battleScreen');this.log('local','⚔️ 练习模式开始！','system');
             },
-            
-            drawInitialCards() {
-                const deck = Array.from(this.collection);
-                const hand = [];
-                for (let i = 0; i < 4; i++) {
-                    const cardId = deck[Math.floor(Math.random() * deck.length)];
-                    hand.push({ ...CARD_DB[cardId], uid: Date.now() + i, id: cardId });
-                }
+            drawInitialCards(){
+                const deck=Array.from(this.collection);const hand=[];
+                for(let i=0;i<4;i++){const cardId=deck[Math.floor(Math.random()*deck.length)];hand.push({...CARD_DB[cardId],uid:Date.now()+i,id:cardId})}
                 return hand;
             },
+            renderPvpHand(){
+                const container=document.getElementById('pvpHand');container.innerHTML='';
+                if(!this.isMyTurn){container.innerHTML='<div style="color:#888;text-align:center;width:100%">等待对手回合...</div>';return}
+                this.self.hand.forEach((card,index)=>{
+                    const div=document.createElement('div');const canPlay=card.cost<=this.actionPoints;
+                    div.className='card card-rarity-'+card.rarity+(canPlay?'':' disabled');
+                    div.innerHTML='<div class="card-cost">'+card.cost+'</div><div class="card-icon">'+card.icon+'</div><div class="card-name">'+card.name+'</div>';
+                    if(canPlay)div.onclick=()=>this.playPvpCard(index);container.appendChild(div);
+                });
+            },
+            renderLocalHand(){
+                const container=document.getElementById('localHand');container.innerHTML='';
+                this.localPlayer.hand.forEach((card,index)=>{
+                    const div=document.createElement('div');const canPlay=card.cost<=this.actionPoints;
+                    div.className='card card-rarity-'+card.rarity+(canPlay?'':' disabled');
+                    div.innerHTML='<div class="card-cost">'+card.cost+'</div><div class="card-icon">'+card.icon+'</div><div class="card-name">'+card.name+'</div>';
+                    if(canPlay)div.onclick=()=>this.playLocalCard(index);container.appendChild(div);
+                });
+            },
+            playPvpCard(index){
+                if(!this.isMyTurn||this.actionPoints<=0)return;
+                const card=this.self.hand[index];if(card.cost>this.actionPoints)return;
+                this.actionPoints-=card.cost;
+                if(this.combo.lastType===card.type){this.combo.count++;this.combo.multiplier=1+(this.combo.count*0.2);this.showCombo(this.combo.count)}
+                else this.combo={count:0,lastType:card.type,multiplier:1};
+                const actualPower=Math.floor(card.power*this.combo.multiplier);
+                let actionData={type:card.type,power:actualPower,cardName:card.name,combo:this.combo.count};
+                if(card.type==='attack'){this.opponent.hp=Math.max(0,this.opponent.hp-actualPower);this.log('pvp','🔥 你使用 '+card.name+' 造成 '+actualPower+' 伤害！','damage')}
+                else if(card.type==='heal'){const heal=Math.min(actualPower,this.self.maxHp-this.self.hp);this.self.hp+=heal;this.log('pvp','💚 你恢复 '+heal+' 点生命','heal');actionData.actualPower=heal}
+                else if(card.type==='defense')this.log('pvp','🛡️ 你获得 '+actualPower+' 点护盾','system');
+                this.self.hand.splice(index,1);const deck=Array.from(this.collection);const newCardId=deck[Math.floor(Math.random()*deck.length)];this.self.hand.push({...CARD_DB[newCardId],uid:Date.now(),id:newCardId});
+                net.send({type:'gameAction',action:actionData});this.updatePvpUI();this.checkPvpWin();
+            },
+            handleRemoteAction(action){
+                if(action.type==='attack'){this.self.hp=Math.max(0,this.self.hp-action.power);this.log('pvp','💥 对手使用 '+action.cardName+' 造成 '+action.power+' 伤害！','damage')}
+                else if(action.type==='heal'){this.opponent.hp=Math.min(this.opponent.maxHp,this.opponent.hp+action.actualPower);this.log('pvp','💙 对手恢复生命','heal')}
+                else if(action.type==='defense')this.log('pvp','🛡️ 对手获得护盾','system');
+                if(action.combo>0)this.showCombo(action.combo);this.updatePvpUI();this.checkPvpWin();
+            },
+            endPvpTurn(){
+                if(!this.isMyTurn)return;this.isMyTurn=false;this.actionPoints=this.maxActionPoints;this.combo={count:0,lastType:null,multiplier:1};
+                document.getElementById('waitingOverlay').classList.add('active');document.getElementById('endTurnBtn').disabled=true;
+                net.send({type:'gameAction',action:{type:'endTurn'}});this.log('pvp','⏭️ 你结束了回合','system');this.updatePvpUI();
+            },
+            handleEndTurn(){
+                this.isMyTurn=true;this.actionPoints=this.maxActionPoints;this.combo={count:0,lastType:null,multiplier:1};
+                document.getElementById('waitingOverlay').classList.remove('active');document.getElementById('endTurnBtn').disabled=false;
+                this.log('pvp','🎮 对手回合结束，轮到你了！','system');this.updatePvpUI();
+            },
+            playLocalCard(index){
+                const card=this.localPlayer.hand[index];if(card.cost>this.actionPoints)return;this.actionPoints-=card.cost;
+                if(this.combo.lastType===card.type){this.combo.count++;this.combo.multiplier=1+(this.combo.count*0.2);this.showCombo(this.combo.count)}
+                else this.combo={count:0,lastType:card.type,multiplier:1};
+                const actualPower=Math.floor(card.power*this.combo.multiplier);
+                if(card.type==='attack'){this.localEnemy.hp=Math.max(0,this.localEnemy.hp-actualPower);this.log('local','🔥 造成 '+actualPower+' 点伤害！','damage')}
+                else if(card.type==='heal'){const heal=Math.min(actualPower,this.localPlayer.maxHp-this.localPlayer.hp);this.localPlayer.hp+=heal;this.log('local','💚 恢复 '+heal+' 点生命','heal')}
+                else if(card.type==='defense')this.log('local','🛡️ 获得护盾','system');
+                this.localPlayer.hand.splice(index,1);const deck=Array.from(this.collection);const newCardId=deck[Math.floor(Math.random()*deck.length)];this.localPlayer.hand.push({...CARD_DB[newCardId],uid:Date.now(),id:newCardId});
+                this.updateLocalUI();this.checkLocalWin();
+            },
+            endLocalTurn(){
+                this.log('local','⏭️ 结束回合，敌人行动中...','system');
+                setTimeout(()=>{
+                    const damage=Math.floor(Math.random()*15)+10;this.localPlayer.hp=Math.max(0,this.localPlayer.hp-damage);this.log('local','👹 敌人造成 '+damage+' 点伤害！','damage');
+                    this.actionPoints=3;this.combo={count:0,lastType:null,multiplier:1};this.updateLocalUI();
+                    if(this.localPlayer.hp<=0)this.showModal('💀','战斗失败','不要气馁，再试一次！');
+                },1000);
+            },
+            updatePvpUI(){
+                document.getElementById('selfHp').style.width=(this.self.hp/this.self.maxHp*100)+'%';document.getElementById('selfHpText').textContent=this.self.hp;
+                document.getElementById('oppoHp').style.width=(this.opponent.hp/this.opponent.maxHp*100)+'%';document.getElementById('oppoHpText').textContent=this.opponent.hp;
+                document.getElementById('pvpActionPoints').textContent=this.actionPoints;
+                document.getElementById('pvpTurnText').textContent=this.isMyTurn?'🎮 你的回合':'⏳ 对手回合';
+                document.getElementById('selfFighter').classList.toggle('active',this.isMyTurn);document.getElementById('oppoFighter').classList.toggle('active',!this.isMyTurn);
+                document.getElementById('endTurnBtn').disabled=!this.isMyTurn;this.renderPvpHand();
+            },
+            updateLocalUI(){
+                document.getElementById('playerHp').style.width=(this.localPlayer.hp/this.localPlayer.maxHp*100)+'%';document.getElementById('playerHpText').textContent=this.localPlayer.hp;
+                document.getElementById('enemyHp').style.width=(this.localEnemy.hp/this.localEnemy.maxHp*100)+'%';document.getElementById('enemyHpText').textContent=this.localEnemy.hp;
+                document.getElementById('localActionPoints').textContent=this.actionPoints;this.renderLocalHand();
+            },
+            checkPvpWin(){
+                if(this.opponent.hp<=0){setTimeout(()=>this.showModal('🏆','胜利！','你击败了对手！'),500);net.send({type:'gameAction',action:{type:'defeat'}})}
+                else if(this.self.hp<=0)setTimeout(()=>this.showModal('💀','失败','再接再厉！'),500);
+            },
+            checkLocalWin(){if(this.localEnemy.hp<=0)this.showModal('🏆','胜利！','练习模式胜利！')},
+            showCombo(count){
+                if(count>0){const indicator=document.getElementById('comboIndicator');indicator.textContent='连击 x'+(count+1)+'!';indicator.classList.add('show');setTimeout(()=>indicator.classList.remove('show'),1500);this.log(this.mode,'⚡ 连击 x'+(count+1)+'! 伤害提升 '+Math.floor(count*20)+'%','combo')}
+            },
+            log(mode,message,type){
+                const logId=mode==='pvp'?'pvpLog':'battleLog';const logDiv=document.getElementById(logId);const entry=document.createElement('div');entry.className='log-entry '+type;entry.innerHTML=message;logDiv.appendChild(entry);logDiv.scrollTop=logDiv.scrollHeight;
+            },
+            showModal(icon,title,text){document.getElementById('resultIcon').textContent=icon;document.getElementById('resultTitle').textContent=title;document.getElementById('resultText').textContent=text;document.getElementById('resultModal').classList.add('active')},
+            closeModal(){document.getElementById('resultModal').classList.remove('active');this.showScreen('mainMenu');if(net.conn)net.conn.close();if(net.peer)net.peer.destroy();location.reload()},
+            async startScan(){
+                if('NDEFReader' in window){try{const ndef=new NDEFReader();await ndef.scan();alert('请将 NFC 卡片贴近手机背面');ndef.addEventListener("reading",({serialNumber})=>{this.processNFC(serialNumber)})}catch(e){alert('NFC 扫描需要 HTTPS 环境，请使用本地练习模式收集卡牌')}}
+                else{const rewards=['NFC-004','NFC-005','NFC-006','NFC-007','NFC-008'];const reward=rewards[Math.floor(Math.random()*rewards.length)];this.collection.add(reward);this.showModal('🎴','模拟扫描成功','获得新卡牌: '+CARD_DB[reward].name)}
+            },
+            processNFC(id){if(CARD_DB[id]&&!this.collection.has(id)){this.collection.add(id);this.showModal('🎉','新卡牌！','获得 '+CARD_DB[id].name)}},
+            showCollection(){
+                const grid=document.getElementById('collectionGrid');grid.innerHTML='';
+                Object.keys(CARD_DB).forEach(id=>{const card=CARD_DB[id];const owned=this.collection.has(id);const div=document.createElement('div');div.className='card '+(owned?'card-rarity-'+card.rarity:'');div.style.opacity=owned?'1':'0.3';div.innerHTML='<div class="card-icon">'+(owned?card.icon:'?')+'</div><div class="card-name" style="font-size:0.7em">'+(owned?card.name:'???')+'</div>';grid.appendChild(div)});
+                this.showScreen('collectionScreen');
+            }
+        };
+        document.addEventListener('touchstart',function(e){if(e.touches.length>1)e.preventDefault()},{passive:false});
+    </script>
+</body>
+</html>
