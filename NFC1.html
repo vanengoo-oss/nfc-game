@@ -3,41 +3,45 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>NFC 联机对战</title>
+<title>NFC 联机对战 - 极速版</title>
 <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0f;color:white;overflow-x:hidden;touch-action:manipulation}
 .screen{display:none;min-height:100vh;padding:20px}
 .screen.active{display:block}
-.game-title{text-align:center;font-size:2em;margin:20px 0;color:#00f3ff;text-shadow:0 0 20px rgba(0,243,255,0.5)}
-.btn{display:block;width:90%;max-width:300px;margin:15px auto;padding:15px;border:none;border-radius:12px;font-size:1.1em;font-weight:bold;cursor:pointer;background:linear-gradient(135deg,#00f3ff,#0080ff);color:white;box-shadow:0 4px 15px rgba(0,243,255,0.3)}
+.game-title{text-align:center;font-size:2em;margin:20px 0;color:#00f3ff}
+.btn{display:block;width:90%;max-width:300px;margin:15px auto;padding:15px;border:none;border-radius:12px;font-size:1.1em;font-weight:bold;cursor:pointer;background:linear-gradient(135deg,#00f3ff,#0080ff);color:white}
 .btn-secondary{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2)}
 .btn-warning{background:linear-gradient(135deg,#ff9500,#ff6348)}
 .btn:active{transform:scale(0.95)}
 .btn:disabled{opacity:0.5;cursor:not-allowed}
-.lobby-box{max-width:400px;margin:20px auto;background:rgba(255,255,255,0.05);padding:20px;border-radius:15px;border:1px solid rgba(255,255,255,0.1)}
+.lobby-box{max-width:400px;margin:20px auto;background:rgba(255,255,255,0.05);padding:20px;border-radius:15px}
 .code-input{width:100%;padding:15px;font-size:1.2em;text-align:center;background:rgba(0,0,0,0.3);border:2px solid rgba(255,255,255,0.2);border-radius:10px;color:white;margin:10px 0}
 .room-code{font-size:2em;color:#00f3ff;text-align:center;margin:10px 0;font-family:monospace;letter-spacing:5px}
 .status-box{text-align:center;padding:10px;margin:10px 0;border-radius:10px;font-size:0.9em}
 .status-ok{background:rgba(46,213,115,0.2);color:#2ed573}
 .status-wait{background:rgba(255,193,7,0.2);color:#ffc107}
 .status-err{background:rgba(255,71,87,0.2);color:#ff4757}
+.rule-hint{text-align:center;color:#888;font-size:0.85em;margin:10px 0;padding:10px;background:rgba(255,255,255,0.05);border-radius:10px}
+.rule-hint span{color:#ff9500}
 .fighter{background:rgba(255,255,255,0.05);border-radius:15px;padding:15px;text-align:center;margin:10px 0;border:2px solid transparent}
 .fighter.active{border-color:#00f3ff;box-shadow:0 0 20px rgba(0,243,255,0.3)}
 .hp-bar{width:100%;height:12px;background:rgba(255,255,255,0.1);border-radius:6px;overflow:hidden;margin:10px 0}
 .hp-fill{height:100%;background:linear-gradient(90deg,#00d26a,#00f3ff);transition:width 0.3s}
 .hp-fill.red{background:linear-gradient(90deg,#ff4757,#ff6348)}
 .hand-area{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,0.95),transparent);padding:20px;padding-bottom:30px}
-.card{min-width:85px;height:120px;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid rgba(255,255,255,0.1);border-radius:10px;padding:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;margin-right:10px;flex-shrink:0}
+.card{min-width:85px;height:120px;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid rgba(255,255,255,0.1);border-radius:10px;padding:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;margin-right:10px;flex-shrink:0;position:relative}
 .card.disabled{opacity:0.4;pointer-events:none;filter:grayscale(100%)}
+.card.used{border-color:#ff4757;opacity:0.6}
 .cards-container{display:flex;overflow-x:auto;padding:10px;scrollbar-width:none}
 .cards-container::-webkit-scrollbar{display:none}
-.battle-log{height:120px;overflow-y:auto;background:rgba(0,0,0,0.3);border-radius:10px;padding:10px;margin-bottom:220px;font-size:0.85em}
+.battle-log{height:100px;overflow-y:auto;background:rgba(0,0,0,0.3);border-radius:10px;padding:10px;margin-bottom:200px;font-size:0.85em}
 .log-entry{margin:3px 0;padding:5px;border-left:3px solid #00f3ff;padding-left:8px}
 .damage{color:#ff6b6b;font-weight:bold}
 .heal{color:#51cf66;font-weight:bold}
-.end-turn-btn{position:fixed;bottom:190px;right:20px;background:#bc13fe;color:white;border:none;padding:12px 24px;border-radius:25px;font-weight:bold;z-index:100;box-shadow:0 4px 15px rgba(188,19,254,0.4)}
+.auto-end{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.9);padding:20px;border-radius:15px;z-index:1000;text-align:center;border:2px solid #00f3ff}
+.auto-end.show{display:block}
 .waiting-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:500;flex-direction:column;align-items:center;justify-content:center}
 .waiting-overlay.active{display:flex}
 .spinner{width:50px;height:50px;border:4px solid rgba(255,255,255,0.1);border-top-color:#00f3ff;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:20px}
@@ -47,19 +51,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </head>
 <body>
 <div id="mainMenu" class="screen active">
-<h1 class="game-title">⚡ NFC 联机对战</h1>
-<button class="btn" onclick="game.startLocal()">👤 本地练习</button>
-<button class="btn btn-secondary" onclick="game.showScreen('lobby')">🌐 创建房间(联机)</button>
-<button class="btn btn-secondary" onclick="game.showScreen('join')">🚀 加入房间(联机)</button>
-<button class="btn btn-secondary" onclick="game.showCollection()">📚 查看卡册</button>
-<div style="text-align:center;color:#666;font-size:0.8em;margin-top:30px">
-💡 提示：联机需要双方都有网络<br>
-<span style="color:#ffc107">如果联机失败，请使用本地练习</span>
+<h1 class="game-title">⚡ NFC 极速对战</h1>
+<div class="rule-hint">
+<span>⚡ 新规则：</span>每回合1行动点 | 只能攻击1次 | 自动结束回合
 </div>
+<button class="btn" onclick="game.startLocal()">👤 本地练习</button>
+<button class="btn btn-secondary" onclick="game.showScreen('lobby')">🌐 创建房间</button>
+<button class="btn btn-secondary" onclick="game.showScreen('join')">🚀 加入房间</button>
+<button class="btn btn-secondary" onclick="game.showCollection()">📚 卡册</button>
 </div>
 
 <div id="lobby" class="screen">
-<h2 style="text-align:center;margin-bottom:20px">🏠 创建房间</h2>
+<h2 style="text-align:center">🏠 创建房间</h2>
 <div class="lobby-box">
 <button class="btn" onclick="net.createRoom()" id="createBtn" style="margin-top:0">生成房间代码</button>
 <div id="roomDisplay" style="display:none;margin-top:20px">
@@ -68,7 +71,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div class="status-box status-wait" id="hostStatus">等待对手加入...</div>
 <button class="btn btn-secondary" onclick="net.copyCode()">📋 复制代码</button>
 </div>
-<div class="status-box status-err" id="hostError" style="display:none;margin-top:10px">
+<div class="status-box status-err" id="hostError" style="display:none">
 服务器连接失败<br>
 <button class="btn" onclick="game.startLocal()" style="margin-top:10px;font-size:0.9em">改为本地练习</button>
 </div>
@@ -77,7 +80,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div>
 
 <div id="join" class="screen">
-<h2 style="text-align:center;margin-bottom:20px">🚀 加入房间</h2>
+<h2 style="text-align:center">🚀 加入房间</h2>
 <div class="lobby-box">
 <div style="color:#888;margin-bottom:10px">输入朋友给的代码：</div>
 <input type="text" class="code-input" id="joinInput" placeholder="如：A3F9K2" maxlength="6">
@@ -89,8 +92,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <div id="gameScreen" class="screen">
 <div class="ping" id="pingText">延迟: --ms</div>
-<div style="text-align:center;padding:10px;background:rgba(0,243,255,0.1);border-radius:20px;margin-bottom:10px;font-size:0.9em">
-<span id="turnText">🎮 你的回合</span>
+<div style="text-align:center;padding:8px;background:rgba(0,243,255,0.1);border-radius:20px;margin-bottom:10px;font-size:0.85em">
+<span id="turnText">🎮 你的回合</span> | 
+<span style="color:#ff9500">⚡<span id="apText">1</span>/1</span> | 
+<span id="attackStatus" style="color:#ff6b6b">可攻击</span>
 </div>
 <div class="fighter active" id="p1Box">
 <div style="font-size:2.5em">🧙‍♂️</div>
@@ -104,16 +109,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div class="hp-bar"><div class="hp-fill red" id="p2Hp" style="width:100%"></div></div>
 <div><span id="p2HpText">100</span>/100 HP</div>
 </div>
-<div class="battle-log" id="gameLog"><div class="log-entry">⚔️ 战斗开始！</div></div>
-<button class="end-turn-btn" id="endBtn" onclick="game.endTurn()">结束回合</button>
+<div class="battle-log" id="gameLog"><div class="log-entry">⚔️ 战斗开始！每回合只能攻击1次，行动点用完自动结束回合</div></div>
 <div class="hand-area">
-<div style="text-align:center;color:#ff9500;margin-bottom:5px">⚡ 行动点: <span id="apText">3</span>/3</div>
 <div class="cards-container" id="handBox"></div>
 </div>
 <div class="waiting-overlay" id="waitOverlay">
 <div class="spinner"></div>
 <div style="font-size:1.2em">等待对手...</div>
-<div style="color:#888;margin-top:10px;font-size:0.9em">请耐心等待，不要关闭页面</div>
+</div>
+<div class="auto-end" id="autoEndMsg">
+<div style="font-size:1.5em;color:#00f3ff">⏭️ 行动点用完</div>
+<div style="margin-top:10px">自动结束回合...</div>
 </div>
 </div>
 <script>
@@ -141,34 +147,21 @@ document.getElementById('hostStatus').style.display='block';
 document.getElementById('hostError').style.display='none';
 
 try{
-this.peer=new Peer(this.roomCode,{
-host:'0.peerjs.com',
-port:443,
-secure:true,
-path:'/',
-debug:1
-});
-
+this.peer=new Peer(this.roomCode,{host:'0.peerjs.com',port:443,secure:true,path:'/',debug:1});
 this.peer.on('open',()=>{
 document.getElementById('hostStatus').textContent='房间已创建，等待对手...';
-document.getElementById('hostStatus').className='status-box status-wait';
 });
-
 this.peer.on('connection',(conn)=>{
-this.conn=conn;
-this.setupConn();
+this.conn=conn;this.setupConn();
 document.getElementById('hostStatus').textContent='对手已连接！开始战斗...';
 document.getElementById('hostStatus').className='status-box status-ok';
 setTimeout(()=>game.startPvp(true),1000);
 });
-
 this.peer.on('error',(err)=>{
-console.error(err);
 document.getElementById('hostStatus').style.display='none';
 document.getElementById('hostError').style.display='block';
 document.getElementById('createBtn').disabled=false;
 });
-
 }catch(e){
 alert('创建失败：'+e.message);
 document.getElementById('createBtn').disabled=false;
@@ -178,34 +171,22 @@ document.getElementById('createBtn').disabled=false;
 joinRoom(){
 const code=document.getElementById('joinInput').value.toUpperCase().trim();
 if(code.length<4){alert('请输入有效房间代码');return}
-
-this.isHost=false;
-this.roomCode=code;
+this.isHost=false;this.roomCode=code;
 document.getElementById('joinBtn').disabled=true;
 const status=document.getElementById('joinStatus');
-status.style.display='block';
-status.textContent='正在连接...';
-status.className='status-box status-wait';
+status.style.display='block';status.textContent='正在连接...';status.className='status-box status-wait';
 
 try{
-this.peer=new Peer(null,{
-host:'0.peerjs.com',
-port:443,
-secure:true,
-path:'/'
-});
-
+this.peer=new Peer(null,{host:'0.peerjs.com',port:443,secure:true,path:'/'});
 this.peer.on('open',()=>{
 this.conn=this.peer.connect(code,{reliable:true});
 this.setupConn();
 });
-
 this.peer.on('error',(err)=>{
 status.textContent='连接失败：'+err.message;
 status.className='status-box status-err';
 document.getElementById('joinBtn').disabled=false;
 });
-
 }catch(e){
 alert('连接错误：'+e.message);
 document.getElementById('joinBtn').disabled=false;
@@ -220,7 +201,6 @@ document.getElementById('joinStatus').className='status-box status-ok';
 if(!this.isHost)setTimeout(()=>game.startPvp(false),500);
 this.startPing();
 });
-
 this.conn.on('data',(data)=>{
 if(data.type==='ping')this.conn.send({type:'pong',time:data.time});
 else if(data.type==='pong'){
@@ -230,16 +210,11 @@ document.getElementById('pingText').textContent='延迟:'+ping+'ms';
 else if(data.type==='action')game.handleAction(data.data);
 else if(data.type==='end')game.handleEndTurn();
 });
-
-this.conn.on('close',()=>{
-alert('对手断开连接');
-location.reload();
-});
+this.conn.on('close',()=>{alert('对手断开连接');location.reload();});
 },
 
 send(data){if(this.conn&&this.conn.open)this.conn.send(data)},
 startPing(){setInterval(()=>this.send({type:'ping',time:Date.now()}),2000)},
-
 copyCode(){
 const code=this.roomCode;
 if(navigator.clipboard)navigator.clipboard.writeText(code).then(()=>alert('已复制：'+code));
@@ -247,8 +222,13 @@ else prompt('复制此代码：',code);
 }
 };
 const game={
-mode:'local',isMyTurn:true,actionPoints:3,
-p1:{hp:100,hand:[]},p2:{hp:100},
+mode:'local',
+isMyTurn:true,
+actionPoints:1,        // 改为1点
+maxActionPoints:1,     // 最大1点
+hasAttackedThisTurn:false,  // 本回合是否已攻击
+p1:{hp:100,hand:[]},
+p2:{hp:100},
 collection:new Set(['NFC-001','NFC-002','NFC-003']),
 
 showScreen(id){
@@ -258,30 +238,34 @@ document.getElementById(id).classList.add('active');
 
 startLocal(){
 this.mode='local';
-this.p1.hp=100;this.p2.hp=100;this.actionPoints=3;this.isMyTurn=true;
+this.p1.hp=100;this.p2.hp=100;
+this.resetTurnState();  // 重置回合状态
 this.p1.hand=this.drawCards(4);
 this.updateUI();
 this.showScreen('gameScreen');
-this.log('⚔️ 本地练习模式');
 document.getElementById('waitOverlay').style.display='none';
-document.getElementById('endBtn').disabled=false;
+this.log('⚔️ 本地练习：每回合1行动点，只能攻击1次');
 },
 
 startPvp(isHost){
 this.mode='pvp';
-this.p1.hp=100;this.p2.hp=100;this.actionPoints=3;
+this.p1.hp=100;this.p2.hp=100;
+this.resetTurnState();
 this.isMyTurn=isHost;
 this.p1.hand=this.drawCards(4);
 this.updateUI();
 this.showScreen('gameScreen');
-this.log('⚔️ PVP对战开始！'+(isHost?'你是主机，先手':'你是客人，后手'));
+this.log('⚔️ PVP开始！'+(isHost?'你是主机，先手':'你是客人，后手'));
 if(!this.isMyTurn){
 document.getElementById('waitOverlay').style.display='flex';
-document.getElementById('endBtn').disabled=true;
 }else{
 document.getElementById('waitOverlay').style.display='none';
-document.getElementById('endBtn').disabled=false;
 }
+},
+
+resetTurnState(){
+this.actionPoints=this.maxActionPoints;
+this.hasAttackedThisTurn=false;  // 重置攻击标志
 },
 
 drawCards(n){
@@ -298,13 +282,20 @@ render(){
 const box=document.getElementById('handBox');
 box.innerHTML='';
 if(this.mode==='pvp'&&!this.isMyTurn){
-box.innerHTML='<div style="color:#888;text-align:center;width:100%">等待对手回合...</div>';
+box.innerHTML='<div style="color:#888;text-align:center;width:100%;padding:20px">等待对手回合...</div>';
 return;
 }
+
 this.p1.hand.forEach((card,i)=>{
 const div=document.createElement('div');
-div.className='card'+(card.cost>this.actionPoints?' disabled':'');
-div.innerHTML='<div style="font-size:2em">'+card.icon+'</div><div style="font-size:0.8em">'+card.name+'</div><div style="color:#ff9500;font-weight:bold">'+card.cost+'⚡</div>';
+// 检查是否可用：费用不足 或 本回合已攻击且这是攻击牌
+const cantAttack=this.hasAttackedThisTurn&&card.type==='attack';
+const disabled=card.cost>this.actionPoints||cantAttack;
+
+div.className='card'+(disabled?' disabled':'');
+if(cantAttack)div.style.borderColor='#ff4757';  // 标红表示本回合不能攻击
+
+div.innerHTML='<div style="font-size:2em">'+card.icon+'</div><div style="font-size:0.8em">'+card.name+'</div><div style="color:#ff9500;font-weight:bold">'+card.cost+'⚡</div>'+(cantAttack?'<div style="color:#ff4757;font-size:0.7em">已攻击</div>':'');
 div.onclick=()=>this.playCard(i);
 box.appendChild(div);
 });
@@ -313,10 +304,19 @@ box.appendChild(div);
 playCard(idx){
 if(this.mode==='pvp'&&!this.isMyTurn)return;
 const card=this.p1.hand[idx];
+
+// 检查攻击限制
+if(card.type==='attack'&&this.hasAttackedThisTurn){
+this.log('❌ 本回合已经攻击过了！');
+return;
+}
 if(card.cost>this.actionPoints)return;
+
+// 执行出牌
 this.actionPoints-=card.cost;
 
 if(card.type==='attack'){
+this.hasAttackedThisTurn=true;  // 标记已攻击
 this.p2.hp=Math.max(0,this.p2.hp-card.power);
 this.log('🔥 使用'+card.name+'造成<span class="damage">'+card.power+'</span>伤害');
 if(this.mode==='pvp')net.send({type:'action',data:{t:'atk',dmg:card.power}});
@@ -325,12 +325,37 @@ const heal=Math.min(card.power,100-this.p1.hp);
 this.p1.hp+=heal;
 this.log('💚 恢复<span class="heal">'+heal+'</span>生命');
 if(this.mode==='pvp')net.send({type:'action',data:{t:'heal',val:heal}});
+}else if(card.type==='defense'){
+this.log('🛡️ 获得'+card.power+'点护盾');
+if(this.mode==='pvp')net.send({type:'action',data:{t:'def',val:card.power}});
 }
 
+// 补充手牌
 this.p1.hand.splice(idx,1);
 this.p1.hand.push(this.drawCards(1)[0]);
 this.updateUI();
-if(this.p2.hp<=0)this.win();
+
+// 检查胜利
+if(this.p2.hp<=0){
+setTimeout(()=>this.win(),300);
+return;
+}
+
+// 自动结束回合检查：行动点为0时自动结束
+if(this.actionPoints<=0){
+setTimeout(()=>this.autoEndTurn(),800);
+}
+},
+
+autoEndTurn(){
+// 显示自动结束提示
+const msg=document.getElementById('autoEndMsg');
+msg.classList.add('show');
+setTimeout(()=>{
+msg.classList.remove('show');
+if(this.mode==='local')this.enemyTurn();
+else this.endPvpTurn();
+},1000);
 },
 
 handleAction(data){
@@ -340,32 +365,27 @@ this.log('💥 对手造成<span class="damage">'+data.dmg+'</span>伤害');
 }else if(data.t==='heal'){
 this.p2.hp=Math.min(100,this.p2.hp+data.val);
 this.log('💙 对手恢复生命');
+}else if(data.t==='def'){
+this.log('🛡️ 对手获得护盾');
 }
 this.updateUI();
 if(this.p1.hp<=0)this.lose();
 },
 
-endTurn(){
-if(this.mode==='local'){
-this.enemyTurn();
-return;
-}
-if(!this.isMyTurn)return;
+endPvpTurn(){
 this.isMyTurn=false;
-this.actionPoints=3;
+this.resetTurnState();  // 重置状态为下一回合做准备
 document.getElementById('waitOverlay').style.display='flex';
-document.getElementById('endBtn').disabled=true;
 net.send({type:'end'});
-this.log('⏭️ 结束回合');
+this.log('⏭️ 回合结束（自动）');
 this.updateUI();
 },
 
 handleEndTurn(){
 this.isMyTurn=true;
-this.actionPoints=3;
+this.resetTurnState();  // 新回合重置攻击标志
 document.getElementById('waitOverlay').style.display='none';
-document.getElementById('endBtn').disabled=false;
-this.log('🎮 对手回合结束，到你行动！');
+this.log('🎮 轮到你的回合！');
 this.updateUI();
 },
 
@@ -375,7 +395,7 @@ setTimeout(()=>{
 const dmg=Math.floor(Math.random()*15)+10;
 this.p1.hp-=dmg;
 this.log('👹 敌人造成<span class="damage">'+dmg+'</span>伤害');
-this.actionPoints=3;
+this.resetTurnState();  // 敌人回合结束，回到玩家回合时重置
 this.updateUI();
 if(this.p1.hp<=0)this.lose();
 },1000);
@@ -387,6 +407,17 @@ document.getElementById('p1HpText').textContent=this.p1.hp;
 document.getElementById('p2Hp').style.width=this.p2.hp+'%';
 document.getElementById('p2HpText').textContent=this.p2.hp;
 document.getElementById('apText').textContent=this.actionPoints;
+
+// 更新攻击状态显示
+const atkStatus=document.getElementById('attackStatus');
+if(this.hasAttackedThisTurn){
+atkStatus.textContent='已攻击';
+atkStatus.style.color='#888';
+}else{
+atkStatus.textContent='可攻击';
+atkStatus.style.color='#ff6b6b';
+}
+
 document.getElementById('turnText').textContent=this.isMyTurn?'🎮 你的回合':'⏳ 对手回合';
 document.getElementById('p1Box').classList.toggle('active',this.isMyTurn);
 document.getElementById('p2Box').classList.toggle('active',!this.isMyTurn);
@@ -404,10 +435,9 @@ div.scrollTop=div.scrollHeight;
 
 win(){setTimeout(()=>{alert('🏆 胜利！');this.showScreen('mainMenu')},500)},
 lose(){setTimeout(()=>{alert('💀 失败');this.showScreen('mainMenu')},500)},
-
 showCollection(){
 this.showScreen('mainMenu');
-alert('卡册功能：你已拥有'+this.collection.size+'张卡牌\n(实际开发中可查看详情)');
+alert('卡册：拥有'+this.collection.size+'张卡牌');
 }
 };
 
