@@ -1,434 +1,417 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NFC 次元对决 - 修复版</title>
-    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
-    <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        :root{--neon-blue:#00f3ff;--neon-purple:#bc13fe;--neon-orange:#ff9500;--dark-bg:#0a0a0f;--card-bg:rgba(255,255,255,0.05)}
-        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--dark-bg);color:white;overflow-x:hidden;touch-action:manipulation}
-        .screen{display:none;min-height:100vh;padding:20px;animation:fadeIn 0.5s}
-        .screen.active{display:block}
-        @keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-        .game-title{text-align:center;font-size:2.2em;font-weight:bold;margin:20px 0;background:linear-gradient(45deg,var(--neon-blue),var(--neon-purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-        .menu-grid{display:grid;gap:15px;max-width:350px;margin:30px auto}
-        .btn{display:block;width:100%;padding:18px;border:none;border-radius:12px;font-size:1.1em;font-weight:bold;cursor:pointer;transition:all 0.3s}
-        .btn-primary{background:linear-gradient(135deg,var(--neon-blue),#0080ff);color:white;box-shadow:0 4px 15px rgba(0,243,255,0.4)}
-        .btn-secondary{background:rgba(255,255,255,0.1);color:white;border:1px solid rgba(255,255,255,0.2)}
-        .btn-warning{background:linear-gradient(135deg,var(--neon-orange),#ff6348);color:white}
-        .btn:active{transform:scale(0.95)}
-        .btn:disabled{opacity:0.5;cursor:not-allowed}
-        .lobby-container{max-width:400px;margin:0 auto}
-        .room-code-display{background:rgba(0,243,255,0.1);border:2px dashed var(--neon-blue);border-radius:16px;padding:30px;text-align:center;margin:20px 0}
-        .room-code{font-size:3em;font-weight:bold;color:var(--neon-blue);letter-spacing:10px;font-family:'Courier New',monospace}
-        .code-input{width:100%;padding:15px;font-size:1.5em;text-align:center;letter-spacing:5px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2);border-radius:12px;color:white;margin:10px 0}
-        .connection-status{text-align:center;padding:10px;border-radius:20px;margin:15px 0;font-weight:bold;font-size:0.9em}
-        .status-connecting{background:rgba(255,193,7,0.2);color:#ffc107}
-        .status-connected{background:rgba(46,213,115,0.2);color:#2ed573}
-        .status-error{background:rgba(255,71,87,0.2);color:#ff4757}
-        .pvp-arena{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:20px}
-        .fighter{background:var(--card-bg);border-radius:16px;padding:15px;text-align:center;border:2px solid transparent;transition:all 0.3s;position:relative}
-        .fighter.active{border-color:var(--neon-blue);box-shadow:0 0 20px rgba(0,243,255,0.3)}
-        .fighter-tag{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--neon-purple);padding:2px 10px;border-radius:10px;font-size:0.7em;font-weight:bold}
-        .fighter-avatar{width:70px;height:70px;margin:10px auto;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;font-size:2em}
-        .hp-bar{width:100%;height:10px;background:rgba(255,255,255,0.1);border-radius:5px;overflow:hidden;margin:8px 0}
-        .hp-fill{height:100%;transition:width 0.5s ease}
-        .hp-fill.player{background:linear-gradient(90deg,#00d26a,#00f3ff)}
-        .hp-fill.enemy{background:linear-gradient(90deg,#ff4757,#ff6348)}
-        .hp-text{font-size:0.85em;color:#aaa}
-        .hand-area{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,0.95),transparent);padding:20px;padding-bottom:30px}
-        .action-points{text-align:center;margin-bottom:10px;font-size:1em;color:var(--neon-orange)}
-        .cards-container{display:flex;gap:10px;overflow-x:auto;padding:10px;scrollbar-width:none}
-        .cards-container::-webkit-scrollbar{display:none}
-        .card{min-width:90px;height:130px;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid rgba(255,255,255,0.1);border-radius:12px;padding:8px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;cursor:pointer;transition:all 0.3s;position:relative;overflow:hidden}
-        .card:active{transform:scale(0.95)}
-        .card.selected{border-color:var(--neon-blue);box-shadow:0 0 20px rgba(0,243,255,0.5);transform:translateY(-10px)}
-        .card.disabled{opacity:0.4;pointer-events:none;filter:grayscale(100%)}
-        .card-rarity-common{border-color:#888}
-        .card-rarity-rare{border-color:#0080ff}
-        .card-rarity-epic{border-color:#bc13fe}
-        .card-rarity-legendary{border-color:#ff9500;animation:legendary-glow 2s infinite}
-        @keyframes legendary-glow{0%,100%{box-shadow:0 0 10px rgba(255,149,0,0.5)}50%{box-shadow:0 0 25px rgba(255,149,0,0.8)}}
-        .card-icon{font-size:1.8em}
-        .card-name{font-size:0.75em;text-align:center;font-weight:bold}
-        .card-cost{position:absolute;top:5px;right:5px;background:var(--neon-orange);color:black;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:0.8em}
-        .battle-log{height:120px;overflow-y:auto;background:rgba(0,0,0,0.3);border-radius:12px;padding:12px;margin-bottom:260px;font-size:0.85em;line-height:1.5}
-        .log-entry{margin:3px 0;padding:4px;border-left:2px solid var(--neon-blue);padding-left:8px;animation:slideIn 0.3s;font-size:0.9em}
-        @keyframes slideIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
-        .damage{color:#ff4757;font-weight:bold}
-        .heal{color:#2ed573;font-weight:bold}
-        .combo{color:#ffa502;font-weight:bold}
-        .system{color:#74b9ff;font-size:0.85em}
-        .combo-indicator{position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);font-size:2.5em;font-weight:bold;color:var(--neon-orange);text-shadow:0 0 20px rgba(255,165,2,0.8);pointer-events:none;opacity:0;z-index:1000;text-align:center}
-        .combo-indicator.show{animation:comboPop 1.5s forwards}
-        @keyframes comboPop{0%{opacity:0;transform:translate(-50%,-50%) scale(0.5)}30%{opacity:1;transform:translate(-50%,-50%) scale(1.2)}100%{opacity:0;transform:translate(-50%,-50%) scale(1) translateY(-100px)}}
-        .end-turn-btn{position:fixed;bottom:230px;right:15px;background:var(--neon-purple);color:white;border:none;padding:12px 20px;border-radius:25px;font-weight:bold;cursor:pointer;box-shadow:0 4px 15px rgba(188,19,254,0.4);z-index:100;font-size:0.9em}
-        .end-turn-btn:disabled{background:#555;box-shadow:none}
-        .waiting-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:500;align-items:center;justify-content:center;flex-direction:column}
-        .waiting-overlay.active{display:flex}
-        .spinner{width:50px;height:50px;border:3px solid rgba(255,255,255,0.3);border-top-color:var(--neon-blue);border-radius:50%;animation:spin 1s linear infinite;margin-bottom:20px}
-        @keyframes spin{to{transform:rotate(360deg)}}
-        .ping-display{position:fixed;top:10px;right:10px;background:rgba(0,0,0,0.5);padding:5px 10px;border-radius:15px;font-size:0.75em;color:#aaa}
-        .ping-good{color:#2ed573}
-        .ping-bad{color:#ff4757}
-        .modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:2000;align-items:center;justify-content:center;padding:20px}
-        .modal.active{display:flex}
-        .modal-content{background:linear-gradient(135deg,#1a1a2e,#16213e);padding:25px;border-radius:20px;text-align:center;max-width:350px;width:100%;border:2px solid var(--neon-blue)}
-        .modal-title{font-size:1.5em;margin-bottom:10px;color:var(--neon-blue)}
-        .modal-text{margin-bottom:20px;line-height:1.5;font-size:0.9em}
-        .retry-btn{background:rgba(255,255,255,0.1);border:1px solid var(--neon-blue);color:var(--neon-blue);padding:8px 16px;border-radius:20px;margin-top:10px;cursor:pointer}
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>NFC 联机对战</title>
+<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0f;color:white;overflow-x:hidden;touch-action:manipulation}
+.screen{display:none;min-height:100vh;padding:20px}
+.screen.active{display:block}
+.game-title{text-align:center;font-size:2em;margin:20px 0;color:#00f3ff;text-shadow:0 0 20px rgba(0,243,255,0.5)}
+.btn{display:block;width:90%;max-width:300px;margin:15px auto;padding:15px;border:none;border-radius:12px;font-size:1.1em;font-weight:bold;cursor:pointer;background:linear-gradient(135deg,#00f3ff,#0080ff);color:white;box-shadow:0 4px 15px rgba(0,243,255,0.3)}
+.btn-secondary{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2)}
+.btn-warning{background:linear-gradient(135deg,#ff9500,#ff6348)}
+.btn:active{transform:scale(0.95)}
+.btn:disabled{opacity:0.5;cursor:not-allowed}
+.lobby-box{max-width:400px;margin:20px auto;background:rgba(255,255,255,0.05);padding:20px;border-radius:15px;border:1px solid rgba(255,255,255,0.1)}
+.code-input{width:100%;padding:15px;font-size:1.2em;text-align:center;background:rgba(0,0,0,0.3);border:2px solid rgba(255,255,255,0.2);border-radius:10px;color:white;margin:10px 0}
+.room-code{font-size:2em;color:#00f3ff;text-align:center;margin:10px 0;font-family:monospace;letter-spacing:5px}
+.status-box{text-align:center;padding:10px;margin:10px 0;border-radius:10px;font-size:0.9em}
+.status-ok{background:rgba(46,213,115,0.2);color:#2ed573}
+.status-wait{background:rgba(255,193,7,0.2);color:#ffc107}
+.status-err{background:rgba(255,71,87,0.2);color:#ff4757}
+.fighter{background:rgba(255,255,255,0.05);border-radius:15px;padding:15px;text-align:center;margin:10px 0;border:2px solid transparent}
+.fighter.active{border-color:#00f3ff;box-shadow:0 0 20px rgba(0,243,255,0.3)}
+.hp-bar{width:100%;height:12px;background:rgba(255,255,255,0.1);border-radius:6px;overflow:hidden;margin:10px 0}
+.hp-fill{height:100%;background:linear-gradient(90deg,#00d26a,#00f3ff);transition:width 0.3s}
+.hp-fill.red{background:linear-gradient(90deg,#ff4757,#ff6348)}
+.hand-area{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,0.95),transparent);padding:20px;padding-bottom:30px}
+.card{min-width:85px;height:120px;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid rgba(255,255,255,0.1);border-radius:10px;padding:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;margin-right:10px;flex-shrink:0}
+.card.disabled{opacity:0.4;pointer-events:none;filter:grayscale(100%)}
+.cards-container{display:flex;overflow-x:auto;padding:10px;scrollbar-width:none}
+.cards-container::-webkit-scrollbar{display:none}
+.battle-log{height:120px;overflow-y:auto;background:rgba(0,0,0,0.3);border-radius:10px;padding:10px;margin-bottom:220px;font-size:0.85em}
+.log-entry{margin:3px 0;padding:5px;border-left:3px solid #00f3ff;padding-left:8px}
+.damage{color:#ff6b6b;font-weight:bold}
+.heal{color:#51cf66;font-weight:bold}
+.end-turn-btn{position:fixed;bottom:190px;right:20px;background:#bc13fe;color:white;border:none;padding:12px 24px;border-radius:25px;font-weight:bold;z-index:100;box-shadow:0 4px 15px rgba(188,19,254,0.4)}
+.waiting-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:500;flex-direction:column;align-items:center;justify-content:center}
+.waiting-overlay.active{display:flex}
+.spinner{width:50px;height:50px;border:4px solid rgba(255,255,255,0.1);border-top-color:#00f3ff;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:20px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ping{position:fixed;top:10px;right:10px;background:rgba(0,0,0,0.5);padding:5px 10px;border-radius:15px;font-size:0.8em}
+</style>
 </head>
 <body>
-    <div id="mainMenu" class="screen active">
-        <h1 class="game-title">⚡ NFC 次元对决 ⚡<br><small style="font-size:0.4em;color:#888">P2P 联机版</small></h1>
-        <div class="menu-grid">
-            <button class="btn btn-primary" onclick="game.showScreen('lobby')">🌐 联机对战</button>
-            <button class="btn btn-secondary" onclick="game.startLocalBattle()">👤 本地练习</button>
-            <button class="btn btn-secondary" onclick="game.startScan()">📱 NFC 扫卡</button>
-            <button class="btn btn-secondary" onclick="game.showCollection()">📚 卡册</button>
-        </div>
-        <div style="text-align:center;margin-top:30px;color:#666;font-size:0.8em">
-            <p>💡 联机无需服务器，手机直连</p>
-            <p id="netStatus" style="color:#ffc107;margin-top:5px">🔴 未连接网络</p>
-        </div>
-    </div>
-    <div id="lobby" class="screen">
-        <h2 style="text-align:center;margin-bottom:20px">🌐 联机大厅</h2>
-        <div class="lobby-container">
-            <div id="hostSection">
-                <button class="btn btn-primary" onclick="net.createRoom()" id="createBtn">🏠 创建房间</button>
-                <div id="roomInfo" style="display:none;margin-top:20px">
-                    <div class="room-code-display">
-                        <div style="color:#888;margin-bottom:5px">房间代码</div>
-                        <div class="room-code" id="roomCode">------</div>
-                        <div style="color:var(--neon-blue);margin-top:10px;font-size:0.9em">等待对手加入...<br><small>将代码发送给朋友</small></div>
-                    </div>
-                    <button class="btn btn-secondary" onclick="net.copyCode()" style="margin-top:10px">📋 复制代码</button>
-                </div>
-            </div>
-            <hr style="border:1px solid rgba(255,255,255,0.1);margin:30px 0">
-            <div id="clientSection">
-                <div style="color:#888;margin-bottom:10px">加入现有房间</div>
-                <input type="text" class="code-input" id="joinCode" placeholder="输入6位代码" maxlength="6">
-                <button class="btn btn-warning" onclick="net.joinRoom()" id="joinBtn" style="margin-top:10px">🚀 加入对战</button>
-            </div>
-            <div id="connectionStatus" class="connection-status" style="display:none;margin-top:15px"></div>
-            <div id="errorHelp" style="display:none;text-align:center;color:#888;font-size:0.8em;margin-top:10px">
-                如果无法连接，请使用<strong>本地练习</strong>模式
-            </div>
-            <button class="btn btn-secondary" onclick="game.showScreen('mainMenu')" style="margin-top:20px">返回</button>
-        </div>
-    </div>
+<div id="mainMenu" class="screen active">
+<h1 class="game-title">⚡ NFC 联机对战</h1>
+<button class="btn" onclick="game.startLocal()">👤 本地练习</button>
+<button class="btn btn-secondary" onclick="game.showScreen('lobby')">🌐 创建房间(联机)</button>
+<button class="btn btn-secondary" onclick="game.showScreen('join')">🚀 加入房间(联机)</button>
+<button class="btn btn-secondary" onclick="game.showCollection()">📚 查看卡册</button>
+<div style="text-align:center;color:#666;font-size:0.8em;margin-top:30px">
+💡 提示：联机需要双方都有网络<br>
+<span style="color:#ffc107">如果联机失败，请使用本地练习</span>
+</div>
+</div>
 
-    <div id="pvpScreen" class="screen">
-        <div class="ping-display" id="pingDisplay">延迟: --ms</div>
-        <div style="text-align:center;padding:10px;background:rgba(188,19,254,0.1);border-radius:20px;margin-bottom:10px;font-size:0.9em">
-            <span id="pvpTurnText">🎮 你的回合</span>
-        </div>
-        <div class="pvp-arena">
-            <div class="fighter active" id="selfFighter">
-                <div class="fighter-tag">你</div>
-                <div class="fighter-avatar">🧙‍♂️</div>
-                <div>勇者</div>
-                <div class="hp-bar"><div class="hp-fill player" id="selfHp" style="width:100%"></div></div>
-                <div class="hp-text"><span id="selfHpText">100</span>/100</div>
-            </div>
-            <div class="fighter" id="oppoFighter">
-                <div class="fighter-tag">对手</div>
-                <div class="fighter-avatar">👹</div>
-                <div id="oppoName">等待...</div>
-                <div class="hp-bar"><div class="hp-fill enemy" id="oppoHp" style="width:100%"></div></div>
-                <div class="hp-text"><span id="oppoHpText">100</span>/100</div>
-            </div>
-        </div>
-        <div class="battle-log" id="pvpLog"><div class="log-entry system">⚔️ PVP 对战开始！击败对手！</div></div>
-        <button class="end-turn-btn" id="endTurnBtn" onclick="game.endPvpTurn()">结束回合 →</button>
-        <div class="hand-area">
-            <div class="action-points">⚡ 行动点: <span id="pvpActionPoints">3</span>/3</div>
-            <div class="cards-container" id="pvpHand"></div>
-        </div>
-        <div class="waiting-overlay" id="waitingOverlay">
-            <div class="spinner"></div>
-            <div>等待对手行动...</div>
-            <div style="font-size:0.8em;color:#888;margin-top:10px">网络延迟: <span id="waitPing">--</span>ms</div>
-        </div>
-    </div>
-    <div id="battleScreen" class="screen">
-        <div style="text-align:center;padding:10px;background:rgba(0,243,255,0.1);border-radius:20px;margin-bottom:10px;font-size:0.9em;color:var(--neon-blue)">👤 练习模式</div>
-        <div class="pvp-arena">
-            <div class="fighter active" id="playerFighter">
-                <div class="fighter-avatar">🧙‍♂️</div>
-                <div>勇者</div>
-                <div class="hp-bar"><div class="hp-fill player" id="playerHp" style="width:100%"></div></div>
-                <div class="hp-text"><span id="playerHpText">100</span>/100</div>
-            </div>
-            <div class="fighter" id="enemyFighter">
-                <div class="fighter-avatar">👹</div>
-                <div>暗影魔王</div>
-                <div class="hp-bar"><div class="hp-fill enemy" id="enemyHp" style="width:100%"></div></div>
-                <div class="hp-text"><span id="enemyHpText">150</span>/150</div>
-            </div>
-        </div>
-        <div class="battle-log" id="battleLog" style="margin-bottom:250px"><div class="log-entry">⚔️ 练习模式开始！</div></div>
-        <button class="end-turn-btn" onclick="game.endLocalTurn()">结束回合 →</button>
-        <div class="hand-area">
-            <div class="action-points">⚡ 行动点: <span id="localActionPoints">3</span>/3</div>
-            <div class="cards-container" id="localHand"></div>
-        </div>
-    </div>
+<div id="lobby" class="screen">
+<h2 style="text-align:center;margin-bottom:20px">🏠 创建房间</h2>
+<div class="lobby-box">
+<button class="btn" onclick="net.createRoom()" id="createBtn" style="margin-top:0">生成房间代码</button>
+<div id="roomDisplay" style="display:none;margin-top:20px">
+<div style="color:#888;text-align:center">告诉朋友这个代码：</div>
+<div class="room-code" id="roomCode">----</div>
+<div class="status-box status-wait" id="hostStatus">等待对手加入...</div>
+<button class="btn btn-secondary" onclick="net.copyCode()">📋 复制代码</button>
+</div>
+<div class="status-box status-err" id="hostError" style="display:none;margin-top:10px">
+服务器连接失败<br>
+<button class="btn" onclick="game.startLocal()" style="margin-top:10px;font-size:0.9em">改为本地练习</button>
+</div>
+</div>
+<button class="btn btn-secondary" onclick="game.showScreen('mainMenu')">返回</button>
+</div>
 
-    <div id="collectionScreen" class="screen">
-        <h2 style="text-align:center;margin-bottom:20px">📚 我的卡册</h2>
-        <div id="collectionGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:10px"></div>
-        <button class="btn btn-primary" onclick="game.showScreen('mainMenu')" style="margin-top:20px">返回</button>
-    </div>
+<div id="join" class="screen">
+<h2 style="text-align:center;margin-bottom:20px">🚀 加入房间</h2>
+<div class="lobby-box">
+<div style="color:#888;margin-bottom:10px">输入朋友给的代码：</div>
+<input type="text" class="code-input" id="joinInput" placeholder="如：A3F9K2" maxlength="6">
+<button class="btn btn-warning" onclick="net.joinRoom()" id="joinBtn">加入对战</button>
+<div class="status-box" id="joinStatus" style="display:none;margin-top:10px"></div>
+</div>
+<button class="btn btn-secondary" onclick="game.showScreen('mainMenu')">返回</button>
+</div>
 
-    <div id="resultModal" class="modal">
-        <div class="modal-content">
-            <div id="resultIcon" style="font-size:3em;margin-bottom:10px">🏆</div>
-            <div class="modal-title" id="resultTitle">胜利！</div>
-            <div class="modal-text" id="resultText">你击败了对手！</div>
-            <button class="btn btn-primary" onclick="game.closeModal()" style="margin-top:15px">确定</button>
-        </div>
-    </div>
+<div id="gameScreen" class="screen">
+<div class="ping" id="pingText">延迟: --ms</div>
+<div style="text-align:center;padding:10px;background:rgba(0,243,255,0.1);border-radius:20px;margin-bottom:10px;font-size:0.9em">
+<span id="turnText">🎮 你的回合</span>
+</div>
+<div class="fighter active" id="p1Box">
+<div style="font-size:2.5em">🧙‍♂️</div>
+<div>你</div>
+<div class="hp-bar"><div class="hp-fill" id="p1Hp" style="width:100%"></div></div>
+<div><span id="p1HpText">100</span>/100 HP</div>
+</div>
+<div class="fighter" id="p2Box">
+<div style="font-size:2.5em">👹</div>
+<div>对手</div>
+<div class="hp-bar"><div class="hp-fill red" id="p2Hp" style="width:100%"></div></div>
+<div><span id="p2HpText">100</span>/100 HP</div>
+</div>
+<div class="battle-log" id="gameLog"><div class="log-entry">⚔️ 战斗开始！</div></div>
+<button class="end-turn-btn" id="endBtn" onclick="game.endTurn()">结束回合</button>
+<div class="hand-area">
+<div style="text-align:center;color:#ff9500;margin-bottom:5px">⚡ 行动点: <span id="apText">3</span>/3</div>
+<div class="cards-container" id="handBox"></div>
+</div>
+<div class="waiting-overlay" id="waitOverlay">
+<div class="spinner"></div>
+<div style="font-size:1.2em">等待对手...</div>
+<div style="color:#888;margin-top:10px;font-size:0.9em">请耐心等待，不要关闭页面</div>
+</div>
+</div>
+<script>
+const CARD_DB={
+'NFC-001':{name:'火球术',type:'attack',cost:1,power:15,icon:'🔥'},
+'NFC-002':{name:'冰冻箭',type:'attack',cost:1,power:12,icon:'❄️'},
+'NFC-003':{name:'治愈之光',type:'heal',cost:1,power:20,icon:'💚'},
+'NFC-004':{name:'雷霆斩',type:'attack',cost:2,power:35,icon:'⚡'},
+'NFC-005':{name:'圣盾术',type:'defense',cost:1,power:20,icon:'🛡️'},
+'NFC-006':{name:'暗影突袭',type:'attack',cost:2,power:45,icon:'🗡️'},
+'NFC-007':{name:'生命之泉',type:'heal',cost:2,power:40,icon:'💙'},
+'NFC-008':{name:'毁灭风暴',type:'attack',cost:3,power:80,icon:'🌪️'}
+};
 
-    <div id="comboIndicator" class="combo-indicator">连击 x2!</div>
+const net={
+peer:null,conn:null,isHost:false,roomCode:'',
 
-    <script>
-        const CARD_DB={
-            'NFC-001':{name:'火球术',type:'attack',rarity:'common',cost:1,power:15,icon:'🔥',desc:'造成15点伤害'},
-            'NFC-002':{name:'冰冻箭',type:'attack',rarity:'common',cost:1,power:12,icon:'❄️',desc:'造成12点伤害'},
-            'NFC-003':{name:'治愈之光',type:'heal',rarity:'common',cost:1,power:20,icon:'💚',desc:'恢复20点生命'},
-            'NFC-004':{name:'雷霆斩',type:'attack',rarity:'rare',cost:2,power:35,icon:'⚡',desc:'造成35点伤害'},
-            'NFC-005':{name:'圣盾术',type:'defense',rarity:'rare',cost:1,power:20,icon:'🛡️',desc:'获得20点护盾'},
-            'NFC-006':{name:'暗影突袭',type:'attack',rarity:'epic',cost:2,power:45,icon:'🗡️',desc:'造成45点伤害'},
-            'NFC-007':{name:'生命之泉',type:'heal',rarity:'epic',cost:2,power:40,icon:'💙',desc:'恢复40点生命'},
-            'NFC-008':{name:'毁灭风暴',type:'attack',rarity:'legendary',cost:3,power:80,icon:'🌪️',desc:'造成80点毁灭伤害'}
-        };
-        const net={
-            peer:null,conn:null,isHost:false,roomCode:'',pingInterval:null,
-            // 使用多个可用的 PeerJS 服务器
-            servers:[
-                {host:'0.peerjs.com',port:443,secure:true},
-                {host:'peerjs.com',port:443,secure:true},
-                {host:'peer.millenniumwar.com',port:443,secure:true}
-            ],
-            currentServer:0,
-            
-            generateCode(){return Math.random().toString(36).substring(2,8).toUpperCase()},
-            
-            getPeerConfig(id){
-                const srv=this.servers[this.currentServer];
-                return{...srv,path:'/myapp',debug:1,...id?{id:id}:{}};
-            },
-            
-            createRoom(){
-                this.isHost=true;this.roomCode=this.generateCode();
-                document.getElementById('roomCode').textContent=this.roomCode;
-                document.getElementById('roomInfo').style.display='block';
-                document.getElementById('createBtn').disabled=true;
-                this.updateStatus('正在创建房间...','connecting');
-                
-                try{
-                    this.peer=new Peer(this.roomCode,this.getPeerConfig());
-                    this.setupPeerEvents(true);
-                }catch(e){
-                    this.handleError('创建失败: '+e.message);
-                }
-            },
-            
-            joinRoom(){
-                const code=document.getElementById('joinCode').value.toUpperCase().trim();
-                if(code.length!==6){alert('请输入6位房间代码');return}
-                this.isHost=false;this.roomCode=code;
-                document.getElementById('joinBtn').disabled=true;
-                this.updateStatus('正在连接...','connecting');
-                
-                try{
-                    this.peer=new Peer(null,this.getPeerConfig());
-                    this.peer.on('open',()=>{
-                        this.conn=this.peer.connect(code,{reliable:true,serialization:'json'});
-                        this.setupConnection();
-                    });
-                    this.peer.on('error',(err)=>this.handleError(err.message));
-                }catch(e){
-                    this.handleError('连接失败: '+e.message);
-                }
-            },
-            
-            setupPeerEvents(isHost){
-                this.peer.on('open',()=>{
-                    this.updateStatus('房间已创建，等待对手...','connecting');
-                    document.getElementById('netStatus').textContent='🟢 网络就绪';
-                    document.getElementById('netStatus').style.color='#2ed573';
-                });
-                this.peer.on('connection',(conn)=>{
-                    if(!isHost)return;
-                    this.conn=conn;this.setupConnection();
-                    this.updateStatus('对手已连接！','connected');
-                    setTimeout(()=>game.startPvpGame(true),800);
-                });
-                this.peer.on('error',(err)=>this.handleError(err.message));
-            },
-            
-            setupConnection(){
-                if(!this.conn)return;
-                this.conn.on('open',()=>{
-                    this.updateStatus('已连接！','connected');
-                    document.getElementById('netStatus').textContent='🟢 已连接对手';
-                    if(!this.isHost)setTimeout(()=>game.startPvpGame(false),500);
-                    this.startPingCheck();
-                });
-                this.conn.on('data',(data)=>this.handleData(data));
-                this.conn.on('close',()=>{
-                    this.updateStatus('连接已断开','error');
-                    alert('对手断开连接');location.reload();
-                });
-                this.conn.on('error',(err)=>console.error('连接错误:',err));
-            },
-            
-            handleError(msg){
-                console.error(msg);
-                this.updateStatus('连接失败，请使用本地模式','error');
-                document.getElementById('errorHelp').style.display='block';
-                document.getElementById('createBtn').disabled=false;
-                document.getElementById('joinBtn').disabled=false;
-                
-                // 尝试下一个服务器
-                if(this.currentServer<this.servers.length-1){
-                    this.currentServer++;
-                    console.log('尝试备用服务器...');
-                }
-            },
-            handleData(data){
-                if(data.type==='ping')this.send({type:'pong',time:data.time});
-                else if(data.type==='pong'){
-                    const ping=Date.now()-data.time;
-                    document.getElementById('pingDisplay').textContent='延迟: '+ping+'ms';
-                    document.getElementById('pingDisplay').className='ping-display '+(ping<100?'ping-good':'ping-bad');
-                    document.getElementById('waitPing').textContent=ping;
-                }else if(data.type==='gameAction'){
-                    if(data.action.type==='endTurn')game.handleEndTurn();
-                    else game.handleRemoteAction(data.action);
-                }
-            },
-            send(data){if(this.conn&&this.conn.open)this.conn.send(data)},
-            startPingCheck(){this.pingInterval=setInterval(()=>this.send({type:'ping',time:Date.now()}),2000)},
-            updateStatus(text,type){
-                const status=document.getElementById('connectionStatus');
-                status.textContent=text;status.className='connection-status status-'+type;status.style.display='block';
-            },
-            copyCode(){
-                const code=this.roomCode;
-                if(navigator.clipboard){navigator.clipboard.writeText(code).then(()=>alert('房间代码: '+code))}
-                else{prompt('复制此代码:',code);}
-            }
-        };
+createRoom(){
+this.isHost=true;
+this.roomCode=Math.random().toString(36).substring(2,8).toUpperCase();
+document.getElementById('roomCode').textContent=this.roomCode;
+document.getElementById('roomDisplay').style.display='block';
+document.getElementById('createBtn').disabled=true;
+document.getElementById('hostStatus').style.display='block';
+document.getElementById('hostError').style.display='none';
 
-        const game={
-            mode:'local',isMyTurn:false,isHost:false,actionPoints:3,maxActionPoints:3,
-            combo:{count:0,lastType:null,multiplier:1},collection:new Set(['NFC-001','NFC-002','NFC-003']),
-            self:{hp:100,maxHp:100,hand:[],name:'勇者'},opponent:{hp:100,maxHp:100,name:'对手'},
-            localPlayer:{hp:100,maxHp:100,hand:[],shield:0},localEnemy:{hp:150,maxHp:150,name:'暗影魔王'},
-            
-            showScreen(id){
-                document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-                document.getElementById(id).classList.add('active');
-            },
-            startPvpGame(host){
-                this.isHost=host;this.mode='pvp';this.isMyTurn=host;
-                this.self.hp=100;this.opponent.hp=100;this.actionPoints=3;
-                this.combo={count:0,lastType:null,multiplier:1};
-                this.self.hand=this.drawInitialCards();
-                this.updatePvpUI();this.showScreen('pvpScreen');
-                this.log('pvp','⚔️ PVP 开始！'+(host?'你是主机，先手':'你是客人，后手'),'system');
-                if(!this.isMyTurn)document.getElementById('waitingOverlay').classList.add('active');
-            },
-            startLocalBattle(){
-                this.mode='local';this.localPlayer.hp=100;this.localPlayer.shield=0;this.localEnemy.hp=150;
-                this.actionPoints=3;this.combo={count:0,lastType:null,multiplier:1};
-                this.localPlayer.hand=this.drawInitialCards();
-                this.updateLocalUI();this.showScreen('battleScreen');this.log('local','⚔️ 练习模式开始！','system');
-            },
-            drawInitialCards(){
-                const deck=Array.from(this.collection);const hand=[];
-                for(let i=0;i<4;i++){const cardId=deck[Math.floor(Math.random()*deck.length)];hand.push({...CARD_DB[cardId],uid:Date.now()+i,id:cardId})}
-                return hand;
-            },
-            renderPvpHand(){
-                const container=document.getElementById('pvpHand');container.innerHTML='';
-                if(!this.isMyTurn){container.innerHTML='<div style="color:#888;text-align:center;width:100%;padding:20px">等待对手回合...</div>';return}
-                this.self.hand.forEach((card,index)=>{
-                    const div=document.createElement('div');const canPlay=card.cost<=this.actionPoints;
-                    div.className='card card-rarity-'+card.rarity+(canPlay?'':' disabled');
-                    div.innerHTML='<div class="card-cost">'+card.cost+'</div><div class="card-icon">'+card.icon+'</div><div class="card-name">'+card.name+'</div>';
-                    if(canPlay)div.onclick=()=>this.playPvpCard(index);container.appendChild(div);
-                });
-            },
-            renderLocalHand(){
-                const container=document.getElementById('localHand');container.innerHTML='';
-                this.localPlayer.hand.forEach((card,index)=>{
-                    const div=document.createElement('div');const canPlay=card.cost<=this.actionPoints;
-                    div.className='card card-rarity-'+card.rarity+(canPlay?'':' disabled');
-                    div.innerHTML='<div class="card-cost">'+card.cost+'</div><div class="card-icon">'+card.icon+'</div><div class="card-name">'+card.name+'</div>';
-                    if(canPlay)div.onclick=()=>this.playLocalCard(index);container.appendChild(div);
-                });
-            },
-            playPvpCard(index){
-                if(!this.isMyTurn||this.actionPoints<=0)return;
-                const card=this.self.hand[index];if(card.cost>this.actionPoints)return;
-                this.actionPoints-=card.cost;
-                if(this.combo.lastType===card.type){this.combo.count++;this.combo.multiplier=1+(this.combo.count*0.2);this.showCombo(this.combo.count)}
-                else this.combo={count:0,lastType:card.type,multiplier:1};
-                const actualPower=Math.floor(card.power*this.combo.multiplier);
-                let actionData={type:card.type,power:actualPower,cardName:card.name,combo:this.combo.count};
-                if(card.type==='attack'){this.opponent.hp=Math.max(0,this.opponent.hp-actualPower);this.log('pvp','🔥 你使用 '+card.name+' 造成 '+actualPower+' 伤害！','damage')}
-                else if(card.type==='heal'){const heal=Math.min(actualPower,this.self.maxHp-this.self.hp);this.self.hp+=heal;this.log('pvp','💚 你恢复 '+heal+' 点生命','heal');actionData.actualPower=heal}
-                else if(card.type==='defense')this.log('pvp','🛡️ 你获得 '+actualPower+' 点护盾','system');
-                this.self.hand.splice(index,1);const deck=Array.from(this.collection);const newCardId=deck[Math.floor(Math.random()*deck.length)];this.self.hand.push({...CARD_DB[newCardId],uid:Date.now(),id:newCardId});
-                net.send({type:'gameAction',action:actionData});this.updatePvpUI();this.checkPvpWin();
-            },
-            handleRemoteAction(action){
-                if(action.type==='attack'){this.self.hp=Math.max(0,this.self.hp-action.power);this.log('pvp','💥 对手使用 '+action.cardName+' 造成 '+action.power+' 伤害！','damage')}
-                else if(action.type==='heal'){this.opponent.hp=Math.min(this.opponent.maxHp,this.opponent.hp+action.actualPower);this.log('pvp','💙 对手恢复生命','heal')}
-                else if(action.type==='defense')this.log('pvp','🛡️ 对手获得护盾','system');
-                if(action.combo>0)this.showCombo(action.combo);this.updatePvpUI();this.checkPvpWin();
-            },
-            endPvpTurn(){
-                if(!this.isMyTurn)return;this.isMyTurn=false;this.actionPoints=this.maxActionPoints;this.combo={count:0,lastType:null,multiplier:1};
-                document.getElementById('waitingOverlay').classList.add('active');document.getElementById('endTurnBtn').disabled=true;
-                net.send({type:'gameAction',action:{type:'endTurn'}});this.log('pvp','⏭️ 你结束了回合','system');this.updatePvpUI();
-            },
-            handleEndTurn(){
-                this.isMyTurn=true;this.actionPoints=this.maxActionPoints;this.combo={count:0,lastType:null,multiplier:1};
-                document.getElementById('waitingOverlay').classList.remove('active');document.getElementById('endTurnBtn').disabled=false;
-                this.log('pvp','🎮 对手回合结束，轮到你了！','system');this.updatePvpUI();
-            },
-            playLocalCard(index){
-                const card=this.localPlayer.hand[index];if(card.cost>this.actionPoints)return;this.actionPoints-=card.cost;
-                if(this.combo.lastType===card.type){this.combo.count++;this.combo.multiplier=1+(this.combo.count*0.2);this.showCombo(this.combo.count)}
-                else this.combo={count:0,lastType:card.type,multiplier:1};
-                const actualPower=Math.floor(card.power*this.combo.multiplier);
-                if(card.type==='attack'){this.localEnemy.hp=Math.max(0,this.localEnemy.hp-actualPower);this.log('local','🔥 造成 '+actualPower+' 点伤害！','damage')}
-                else if(card.type==='heal'){const heal=Math.min(actualPower,this.localPlayer.maxHp-this.localPlayer.hp);this.localPlayer.hp+=heal;this.log('local','💚 恢复 '+heal+' 点生命','heal')}
-                else if(card.type==='defense')this.log('local','🛡️ 获得护盾','system');
-                this.localPlayer.hand.splice(index,1);const deck=Array.from(this.collection);const newCardId=deck[Math.floor(Math.random()*deck.length)];this.localPlayer.hand.push({...CARD_DB[newCardId],uid:Date.now(),id:newCardId});
-                this.updateLocalUI();this.checkLocalWin();
-            },
-            endLocalTurn(){
-                this.log('local','⏭️ 结束回合，敌人行动中...','system');
-                setTimeout(()=>{
-                    const damage=Math.floor(Math.random()*15)+10;this.localPlayer.hp=Math.max(0,this.localPlayer.hp-damage);this.log('local','👹 敌人造成 '+damage+' 点伤害！','damage');
-                    this.actionPoints=3;this.combo={count:0,lastType:null,multiplier:1};this.updateLocalUI();
-                    if(this.localPlayer.hp<=0)this.showModal('💀','战斗失败','不要气馁，再试一次！');
-                },1000);
-            },
-            updatePvpUI(){
-                document.getElementById('selfHp').style.width=(this.self.hp/this.self.maxHp*100)+'%';document.getElementById('selfHpText').textContent=this.self.hp;
-                document.getElementById('oppoHp').style.width=(this.opponent.hp/this.opponent.maxHp*100)+'%';document.getElementById('oppoHpText').textContent=this.opponent.hp;
-                document.getElementById('pvpActionPoints').textContent=this.actionPoints;
-                document.getElementById('pvpTurnText').textContent=this.isMyTurn?'🎮 你的回合':'⏳ 对手回合';
-                docu
+try{
+this.peer=new Peer(this.roomCode,{
+host:'0.peerjs.com',
+port:443,
+secure:true,
+path:'/',
+debug:1
+});
+
+this.peer.on('open',()=>{
+document.getElementById('hostStatus').textContent='房间已创建，等待对手...';
+document.getElementById('hostStatus').className='status-box status-wait';
+});
+
+this.peer.on('connection',(conn)=>{
+this.conn=conn;
+this.setupConn();
+document.getElementById('hostStatus').textContent='对手已连接！开始战斗...';
+document.getElementById('hostStatus').className='status-box status-ok';
+setTimeout(()=>game.startPvp(true),1000);
+});
+
+this.peer.on('error',(err)=>{
+console.error(err);
+document.getElementById('hostStatus').style.display='none';
+document.getElementById('hostError').style.display='block';
+document.getElementById('createBtn').disabled=false;
+});
+
+}catch(e){
+alert('创建失败：'+e.message);
+document.getElementById('createBtn').disabled=false;
+}
+},
+
+joinRoom(){
+const code=document.getElementById('joinInput').value.toUpperCase().trim();
+if(code.length<4){alert('请输入有效房间代码');return}
+
+this.isHost=false;
+this.roomCode=code;
+document.getElementById('joinBtn').disabled=true;
+const status=document.getElementById('joinStatus');
+status.style.display='block';
+status.textContent='正在连接...';
+status.className='status-box status-wait';
+
+try{
+this.peer=new Peer(null,{
+host:'0.peerjs.com',
+port:443,
+secure:true,
+path:'/'
+});
+
+this.peer.on('open',()=>{
+this.conn=this.peer.connect(code,{reliable:true});
+this.setupConn();
+});
+
+this.peer.on('error',(err)=>{
+status.textContent='连接失败：'+err.message;
+status.className='status-box status-err';
+document.getElementById('joinBtn').disabled=false;
+});
+
+}catch(e){
+alert('连接错误：'+e.message);
+document.getElementById('joinBtn').disabled=false;
+}
+},
+
+setupConn(){
+if(!this.conn)return;
+this.conn.on('open',()=>{
+document.getElementById('joinStatus').textContent='已连接！开始战斗...';
+document.getElementById('joinStatus').className='status-box status-ok';
+if(!this.isHost)setTimeout(()=>game.startPvp(false),500);
+this.startPing();
+});
+
+this.conn.on('data',(data)=>{
+if(data.type==='ping')this.conn.send({type:'pong',time:data.time});
+else if(data.type==='pong'){
+const ping=Date.now()-data.time;
+document.getElementById('pingText').textContent='延迟:'+ping+'ms';
+}
+else if(data.type==='action')game.handleAction(data.data);
+else if(data.type==='end')game.handleEndTurn();
+});
+
+this.conn.on('close',()=>{
+alert('对手断开连接');
+location.reload();
+});
+},
+
+send(data){if(this.conn&&this.conn.open)this.conn.send(data)},
+startPing(){setInterval(()=>this.send({type:'ping',time:Date.now()}),2000)},
+
+copyCode(){
+const code=this.roomCode;
+if(navigator.clipboard)navigator.clipboard.writeText(code).then(()=>alert('已复制：'+code));
+else prompt('复制此代码：',code);
+}
+};
+const game={
+mode:'local',isMyTurn:true,actionPoints:3,
+p1:{hp:100,hand:[]},p2:{hp:100},
+collection:new Set(['NFC-001','NFC-002','NFC-003']),
+
+showScreen(id){
+document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+document.getElementById(id).classList.add('active');
+},
+
+startLocal(){
+this.mode='local';
+this.p1.hp=100;this.p2.hp=100;this.actionPoints=3;this.isMyTurn=true;
+this.p1.hand=this.drawCards(4);
+this.updateUI();
+this.showScreen('gameScreen');
+this.log('⚔️ 本地练习模式');
+document.getElementById('waitOverlay').style.display='none';
+document.getElementById('endBtn').disabled=false;
+},
+
+startPvp(isHost){
+this.mode='pvp';
+this.p1.hp=100;this.p2.hp=100;this.actionPoints=3;
+this.isMyTurn=isHost;
+this.p1.hand=this.drawCards(4);
+this.updateUI();
+this.showScreen('gameScreen');
+this.log('⚔️ PVP对战开始！'+(isHost?'你是主机，先手':'你是客人，后手'));
+if(!this.isMyTurn){
+document.getElementById('waitOverlay').style.display='flex';
+document.getElementById('endBtn').disabled=true;
+}else{
+document.getElementById('waitOverlay').style.display='none';
+document.getElementById('endBtn').disabled=false;
+}
+},
+
+drawCards(n){
+const deck=Array.from(this.collection);
+const arr=[];
+for(let i=0;i<n;i++){
+const id=deck[Math.floor(Math.random()*deck.length)];
+arr.push({...CARD_DB[id],uid:Date.now()+i});
+}
+return arr;
+},
+
+render(){
+const box=document.getElementById('handBox');
+box.innerHTML='';
+if(this.mode==='pvp'&&!this.isMyTurn){
+box.innerHTML='<div style="color:#888;text-align:center;width:100%">等待对手回合...</div>';
+return;
+}
+this.p1.hand.forEach((card,i)=>{
+const div=document.createElement('div');
+div.className='card'+(card.cost>this.actionPoints?' disabled':'');
+div.innerHTML='<div style="font-size:2em">'+card.icon+'</div><div style="font-size:0.8em">'+card.name+'</div><div style="color:#ff9500;font-weight:bold">'+card.cost+'⚡</div>';
+div.onclick=()=>this.playCard(i);
+box.appendChild(div);
+});
+},
+
+playCard(idx){
+if(this.mode==='pvp'&&!this.isMyTurn)return;
+const card=this.p1.hand[idx];
+if(card.cost>this.actionPoints)return;
+this.actionPoints-=card.cost;
+
+if(card.type==='attack'){
+this.p2.hp=Math.max(0,this.p2.hp-card.power);
+this.log('🔥 使用'+card.name+'造成<span class="damage">'+card.power+'</span>伤害');
+if(this.mode==='pvp')net.send({type:'action',data:{t:'atk',dmg:card.power}});
+}else if(card.type==='heal'){
+const heal=Math.min(card.power,100-this.p1.hp);
+this.p1.hp+=heal;
+this.log('💚 恢复<span class="heal">'+heal+'</span>生命');
+if(this.mode==='pvp')net.send({type:'action',data:{t:'heal',val:heal}});
+}
+
+this.p1.hand.splice(idx,1);
+this.p1.hand.push(this.drawCards(1)[0]);
+this.updateUI();
+if(this.p2.hp<=0)this.win();
+},
+
+handleAction(data){
+if(data.t==='atk'){
+this.p1.hp-=data.dmg;
+this.log('💥 对手造成<span class="damage">'+data.dmg+'</span>伤害');
+}else if(data.t==='heal'){
+this.p2.hp=Math.min(100,this.p2.hp+data.val);
+this.log('💙 对手恢复生命');
+}
+this.updateUI();
+if(this.p1.hp<=0)this.lose();
+},
+
+endTurn(){
+if(this.mode==='local'){
+this.enemyTurn();
+return;
+}
+if(!this.isMyTurn)return;
+this.isMyTurn=false;
+this.actionPoints=3;
+document.getElementById('waitOverlay').style.display='flex';
+document.getElementById('endBtn').disabled=true;
+net.send({type:'end'});
+this.log('⏭️ 结束回合');
+this.updateUI();
+},
+
+handleEndTurn(){
+this.isMyTurn=true;
+this.actionPoints=3;
+document.getElementById('waitOverlay').style.display='none';
+document.getElementById('endBtn').disabled=false;
+this.log('🎮 对手回合结束，到你行动！');
+this.updateUI();
+},
+
+enemyTurn(){
+this.log('⏭️ 敌人回合...');
+setTimeout(()=>{
+const dmg=Math.floor(Math.random()*15)+10;
+this.p1.hp-=dmg;
+this.log('👹 敌人造成<span class="damage">'+dmg+'</span>伤害');
+this.actionPoints=3;
+this.updateUI();
+if(this.p1.hp<=0)this.lose();
+},1000);
+},
+
+updateUI(){
+document.getElementById('p1Hp').style.width=this.p1.hp+'%';
+document.getElementById('p1HpText').textContent=this.p1.hp;
+document.getElementById('p2Hp').style.width=this.p2.hp+'%';
+document.getElementById('p2HpText').textContent=this.p2.hp;
+document.getElementById('apText').textContent=this.actionPoints;
+document.getElementById('turnText').textContent=this.isMyTurn?'🎮 你的回合':'⏳ 对手回合';
+document.getElementById('p1Box').classList.toggle('active',this.isMyTurn);
+document.getElementById('p2Box').classList.toggle('active',!this.isMyTurn);
+this.render();
+},
+
+log(msg){
+const div=document.getElementById('gameLog');
+const entry=document.createElement('div');
+entry.className='log-entry';
+entry.innerHTML=msg;
+div.appendChild(entry);
+div.scrollTop=div.scrollHeight;
+},
+
+win(){setTimeout(()=>{alert('🏆 胜利！');this.showScreen('mainMenu')},500)},
+lose(){setTimeout(()=>{alert('💀 失败');this.showScreen('mainMenu')},500)},
+
+showCollection(){
+this.showScreen('mainMenu');
+alert('卡册功能：你已拥有'+this.collection.size+'张卡牌\n(实际开发中可查看详情)');
+}
+};
+
+document.addEventListener('touchstart',e=>{if(e.touches.length>1)e.preventDefault()},{passive:false});
+</script>
+</body>
+</html>
